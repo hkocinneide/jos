@@ -18,3 +18,6 @@ V = @
 # following line and set it to the full path to QEMU.
 #
 # QEMU=
+
+# Explicitly set the keymap for QEMU (needed on OS X)
+QEMUEXTRA=-k en-us

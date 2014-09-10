@@ -62,12 +62,12 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
   cprintf("Stack backtrace:\n");
   while(ebp != 0x0)
   {
-    uint32_t eip  = ((uint32_t *)ebp)[4];
-    uint32_t arg1 = ((uint32_t *)ebp)[8];
-    uint32_t arg2 = ((uint32_t *)ebp)[12];
-    uint32_t arg3 = ((uint32_t *)ebp)[16];
-    uint32_t arg4 = ((uint32_t *)ebp)[20];
-    uint32_t arg5 = ((uint32_t *)ebp)[24];
+    uint32_t eip  = ((uint32_t *)ebp)[1];
+    uint32_t arg1 = ((uint32_t *)ebp)[2];
+    uint32_t arg2 = ((uint32_t *)ebp)[3];
+    uint32_t arg3 = ((uint32_t *)ebp)[4];
+    uint32_t arg4 = ((uint32_t *)ebp)[5];
+    uint32_t arg5 = ((uint32_t *)ebp)[6];
     cprintf("  ebp %08x", ebp);
     cprintf("  eip %08x", eip);
     cprintf("  args %08x %08x %08x %08x %08x\n", arg1, arg2, arg3, arg4, arg5);

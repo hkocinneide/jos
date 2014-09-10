@@ -102,4 +102,3 @@ Questions, Exercise 10:
 1. Each recursive call to test_backtrace involves two pushes of 32 bit words:
    One is pushing the %ebp, which is standard GCC prelude convention
    The other is pushing %ebx, which is saving the register to be restored later
-

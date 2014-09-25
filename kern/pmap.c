@@ -181,8 +181,7 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
 
-  boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U | PTE_P);
-  boot_map_region(kern_pgdir, (uintptr_t) pages, PTSIZE, PADDR(pages), PTE_W);
+  boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -427,7 +426,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 
   // And we start to populate its entry in the page directory
   physaddr_t newpde = page2pa(page);
-  newpde = newpde | PTE_P | PTE_W;
+  newpde |= PTE_P | PTE_W | PTE_U;
   *pde = newpde;
 
   // Now that we have a new table, we can return the proper pointer in
@@ -451,9 +450,8 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
   uint32_t i;
   for (i = 0; i < size; i += PGSIZE) {
     pte_t *pte = pgdir_walk(pgdir, (void *) va + i, 1);
-    *pte = pa + i;
-    *pte |= perm;
-    *pte |= PTE_P;
+    *pte = PTE_ADDR(pa + i);
+    *pte |= perm | PTE_P;
   }
 }
 

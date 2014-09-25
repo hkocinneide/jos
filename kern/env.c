@@ -189,7 +189,11 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
   
   e->env_pgdir = (pte_t *) KADDR(page2pa(p));
-  for (i = PDX(UTOP); i < NPDENTRIES; i++)
+  for (i = 0; i < PDX(UTOP); i++)
+  {
+    e->env_pgdir[i] = 0;
+  }
+  for (; i < NPDENTRIES; i++)
   {
     e->env_pgdir[i] = kern_pgdir[i];
   }

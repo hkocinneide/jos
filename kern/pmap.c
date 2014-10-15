@@ -271,6 +271,13 @@ mem_init_mp(void)
 	//
 	// LAB 4: Your code here:
 
+  int i = 0;
+  for (; i < NCPU; i++)
+  {
+    uintptr_t va = KSTACKTOP - (i * (KSTKSIZE + KSTKGAP)) - KSTKSIZE;
+    physaddr_t pa = PADDR(percpu_kstacks[i]);
+    boot_map_region(kern_pgdir, va, KSTKSIZE, pa, PTE_W);
+  }
 }
 
 // --------------------------------------------------------------
@@ -320,9 +327,17 @@ page_init(void)
   // 2) [PGSIZE, npages_basemem * PGSIZE) is free.
   
   for (; i < npages_basemem; i++) {
-    pages[i].pp_ref = 0;
-    pages[i].pp_link = page_free_list;
-    page_free_list = &pages[i];
+    if (i == PGNUM(MPENTRY_PADDR))
+    {
+      pages[i].pp_ref = 1;
+      pages[i].pp_link = NULL;
+    }
+    else
+    {
+      pages[i].pp_ref = 0;
+      pages[i].pp_link = page_free_list;
+      page_free_list = &pages[i];
+    }
   }
 
   // 3) IO hole [IOPHYSMEM, EXTPHYSMEM), must never be allocated
@@ -346,6 +361,7 @@ page_init(void)
     pages[i].pp_link = page_free_list;
     page_free_list = &pages[i];
   }
+  
 }
 
 //
@@ -643,7 +659,17 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+  
+  void *baseptr = (void *) base;
+  size_t alignedsize = ROUNDUP(size, PGSIZE);
+  if (base + size > MMIOLIM)
+  {
+    panic("Ran out of MMIO space");
+  }
+  boot_map_region(kern_pgdir, base, size, pa, PTE_W | PTE_PCD | PTE_PWT);
+  base += alignedsize;
+
+  return baseptr;
 }
 
 static uintptr_t user_mem_check_addr;

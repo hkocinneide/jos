@@ -276,7 +276,7 @@ mem_init_mp(void)
   {
     uintptr_t va = KSTACKTOP - (i * (KSTKSIZE + KSTKGAP)) - KSTKSIZE;
     physaddr_t pa = PADDR(percpu_kstacks[i]);
-    boot_map_region(kern_pgdir, va, KSTKSIZE, pa, PTE_W);
+    boot_map_region(kern_pgdir, va, KSTKSIZE, pa, PTE_P | PTE_W);
   }
 }
 

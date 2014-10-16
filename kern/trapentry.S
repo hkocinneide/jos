@@ -70,6 +70,14 @@ TRAPHANDLER_NOEC(handle_mchk,    T_MCHK);
 TRAPHANDLER_NOEC(handle_simderr, T_SIMDERR);
 TRAPHANDLER_NOEC(handle_syscall, T_SYSCALL);
 
+/* Handling hardware interrupts */
+TRAPHANDLER_NOEC(handle_timer,        IRQ_OFFSET + IRQ_TIMER);
+TRAPHANDLER_NOEC(handle_kbd,          IRQ_OFFSET + IRQ_KBD);
+TRAPHANDLER_NOEC(handle_serial,       IRQ_OFFSET + IRQ_SERIAL);
+TRAPHANDLER_NOEC(handle_spurious,     IRQ_OFFSET + IRQ_SPURIOUS);
+TRAPHANDLER_NOEC(handle_ide,          IRQ_OFFSET + IRQ_IDE);
+TRAPHANDLER_NOEC(handle_error,        IRQ_OFFSET + IRQ_ERROR);
+
 /*
  * Lab 3: Your code here for _alltraps
  */

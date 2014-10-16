@@ -94,25 +94,37 @@ trap_init(void)
   extern void handle_simderr();
   extern void handle_syscall();
 
-  SETGATE(idt[T_DIVIDE],  1, GD_KT, handle_divide,  0);
-  SETGATE(idt[T_DEBUG],   1, GD_KT, handle_debug,   0);
+  extern void handle_timer();
+  extern void handle_kbd();
+  extern void handle_serial();
+  extern void handle_spurious();
+  extern void handle_ide();
+  extern void handle_error();
+
+  SETGATE(idt[T_DIVIDE],  0, GD_KT, handle_divide,  0);
+  SETGATE(idt[T_DEBUG],   0, GD_KT, handle_debug,   0);
   SETGATE(idt[T_NMI],     0, GD_KT, handle_nmi,     0);
-  SETGATE(idt[T_BRKPT],   1, GD_KT, handle_brkpt,   3);
-  SETGATE(idt[T_OFLOW],   1, GD_KT, handle_oflow,   0);
-  SETGATE(idt[T_BOUND],   1, GD_KT, handle_bound,   0);
-  SETGATE(idt[T_ILLOP],   1, GD_KT, handle_illop,   0);
-  SETGATE(idt[T_DEVICE],  1, GD_KT, handle_device,  0);
-  SETGATE(idt[T_DBLFLT],  1, GD_KT, handle_dblflt,  0);
-  SETGATE(idt[T_TSS],     1, GD_KT, handle_tss,     0);
-  SETGATE(idt[T_SEGNP],   1, GD_KT, handle_segnp,   0);
-  SETGATE(idt[T_STACK],   1, GD_KT, handle_stack,   0);
-  SETGATE(idt[T_GPFLT],   1, GD_KT, handle_gpflt,   0);
-  SETGATE(idt[T_PGFLT],   1, GD_KT, handle_pgflt,   0);
-  SETGATE(idt[T_FPERR],   1, GD_KT, handle_fperr,   0);
-  SETGATE(idt[T_ALIGN],   1, GD_KT, handle_align,   0);
-  SETGATE(idt[T_MCHK],    1, GD_KT, handle_mchk,    0);
-  SETGATE(idt[T_SIMDERR], 1, GD_KT, handle_simderr, 0);
+  SETGATE(idt[T_BRKPT],   0, GD_KT, handle_brkpt,   3);
+  SETGATE(idt[T_OFLOW],   0, GD_KT, handle_oflow,   0);
+  SETGATE(idt[T_BOUND],   0, GD_KT, handle_bound,   0);
+  SETGATE(idt[T_ILLOP],   0, GD_KT, handle_illop,   0);
+  SETGATE(idt[T_DEVICE],  0, GD_KT, handle_device,  0);
+  SETGATE(idt[T_DBLFLT],  0, GD_KT, handle_dblflt,  0);
+  SETGATE(idt[T_TSS],     0, GD_KT, handle_tss,     0);
+  SETGATE(idt[T_SEGNP],   0, GD_KT, handle_segnp,   0);
+  SETGATE(idt[T_STACK],   0, GD_KT, handle_stack,   0);
+  SETGATE(idt[T_GPFLT],   0, GD_KT, handle_gpflt,   0);
+  SETGATE(idt[T_PGFLT],   0, GD_KT, handle_pgflt,   0);
+  SETGATE(idt[T_FPERR],   0, GD_KT, handle_fperr,   0);
+  SETGATE(idt[T_SIMDERR], 0, GD_KT, handle_simderr, 0);
   SETGATE(idt[T_SYSCALL], 0, GD_KT, handle_syscall, 3);
+
+  SETGATE(idt[IRQ_OFFSET + IRQ_TIMER],    0, GD_KT, handle_timer,    0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_KBD],      0, GD_KT, handle_kbd,      0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL],   0, GD_KT, handle_serial,   0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, handle_spurious, 0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_IDE],      0, GD_KT, handle_ide,      0);
+  SETGATE(idt[IRQ_OFFSET + IRQ_ERROR],    0, GD_KT, handle_error,    0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -148,7 +160,7 @@ trap_init_percpu(void)
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
   struct Taskstate *cpu_ts = &(thiscpu->cpu_ts);
-	cpu_ts->ts_esp0 = KSTACKTOP;
+	cpu_ts->ts_esp0 = KSTACKTOP - (cpunum() * (KSTKSIZE + KSTKGAP));
 	cpu_ts->ts_ss0 = GD_KD;
 
 	// Initialize the TSS slot of the gdt.
@@ -246,6 +258,10 @@ trap_dispatch(struct Trapframe *tf)
                                   tf->tf_regs.reg_edi,
                                   tf->tf_regs.reg_esi);
     break;
+  case (IRQ_TIMER + IRQ_OFFSET):
+    lapic_eoi();
+    sched_yield();
+    break;
   default:
     print_trapframe(tf);
     if (tf->tf_cs == GD_KT)
@@ -332,7 +348,7 @@ page_fault_handler(struct Trapframe *tf)
   
   if ((tf->tf_cs & 3) == 0)
   {
-    cprintf("kernal page faulted at va: %08x\n", fault_va);
+    cprintf("kernal page faulted at va: %08x eip: %08x\n", fault_va, tf->tf_eip);
     panic("page fault in kernel");
     return;
   }
@@ -370,8 +386,10 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 4: Your code here.
 
+  cprintf("[%08x]Trap triggered at va 0x%x from eip 0x%x\n", curenv->env_id, fault_va, tf->tf_eip);
   if (curenv->env_pgfault_upcall)
   {
+    // cprintf("page_fault_handler: allocating a frame on the exception stack\n");
     // Setup the User-space trap frame
     struct UTrapframe utf;
     utf.utf_fault_va = fault_va;
@@ -383,12 +401,17 @@ page_fault_handler(struct Trapframe *tf)
     utf.utf_esp = tf->tf_esp;
 
     void *newesp = (void *)(utf.utf_esp - sizeof(struct UTrapframe) - 4);
-    user_mem_assert(curenv, newesp, sizeof(struct UTrapframe) + 4, PTE_P | PTE_W | PTE_U);
+    if (tf->tf_esp <= USTACKTOP)
+    {
+      newesp = (void *)(UXSTACKTOP - sizeof(struct UTrapframe));
+    }
+    user_mem_assert(curenv, newesp, sizeof(struct UTrapframe), PTE_P | PTE_W | PTE_U);
     memmove(newesp, (void *)&utf, sizeof(struct UTrapframe));
     // Tell the kernel space trap frame to return to user space
     tf->tf_eip = (uint32_t) curenv->env_pgfault_upcall;
     tf->tf_esp = (uint32_t) newesp;
 
+    // cprintf("page_fault_handler: properly allocated the uxstack frame\n");
     env_run(curenv);
   }
   else
@@ -402,4 +425,3 @@ page_fault_handler(struct Trapframe *tf)
 	print_trapframe(tf);
 	env_destroy(curenv);
 }
-

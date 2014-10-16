@@ -65,12 +65,11 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
-
   movl %esp, %eax      // Save the current stack pointer
   movl 48(%eax), %esp  // Change the stack to the trap frame's (utf_esp)
   movl 40(%eax), %ebx  // Save the new eip (utf_eip)
   pushl %ebx           // Push the new eip onto the trap time stack
-  subl $4, 48(%eax)    // We pushed, so we readjust the utf's esp
+  movl %esp, 48(%eax)  // We pushed, so we readjust the utf's esp
 
 	// Restore the trap-time registers.  After you do this, you
 	// can no longer modify any general-purpose registers.

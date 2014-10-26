@@ -1,0 +1,42 @@
+Questions:
+1) Assuming that the code is correct, x should have the type uintptr_t
+
+Exercise 5 Questions:
+1) At this point we have filled in the following entries in our page directory
+
+Entry      Base Virtual Address          Points to (logically)
+-----      --------------------          ---------------------
+1023   -   0xffc00000                    
+ |             |
+0960   -   0xf0000000                     Space for the kernel
+0959   -   0xefc00000                     The Kernel Stack
+0958   -   0xef800000                     The Kernel Stack Guard Page
+0957   -   0xef400000                     Current Page Table
+0956   -   0xef000000                     User Pages
+0955   -   0xeec00000                     Empty
+ |             |
+0000   -   0x00000000                     Empty
+
+2) Some of the guards we have against user programs writing to the kernel's
+   memory are the fact that we avoided the kernel's physical memory space when
+   we mapped on physical pages and the permissions we put down on the page table
+   when we were mapping the kernel's space to pages.
+
+3) The maximum amount of physical memory this operating system can support is
+   4GB, because we must be able to address each byte with a 32-bit pointer - and
+   2^32 bytes = 4GB
+
+4) If we actually had the maximum amount of physical memory, we would need a
+   page directory and 1024 page tables to address everything, which would mean
+   we would need 1025 pages of overhead to manage all that - or a little more
+   than 4MB of space.
+
+5) We transition to running at an EIP above KERNBASE at the instruction
+     jmp *%eax
+   in entry.S. We can continue executing at a low EIP between enabling paging
+   and this instruction because we map the low physical 4MB addresses to their
+   identical virtual addresses - so we are still operating on the same space.
+   This transition is necessary because we can't jump immediately to the new
+   (physically non-existant in JOS) address space until it is set up. When we
+   set it up, we then need to execute a few instructions in the low address
+   space to make the hop to 0xf0000000 addresses.

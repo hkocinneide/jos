@@ -1,0 +1,104 @@
+Questions, Exercise 4:
+1. The processor starts executing 32-bit code when we hit the instruction
+     0x7c2d: ljmp $0x8, $0x7c32
+   where ljmp tells the processor that we're switching to 32-bit addressing.
+2. The last instruction called in the bootloader is
+     0x7d63: call *10018
+   and the first instruction of the kernel that it loaded is
+     0x10000c: movw $1234, 0x472
+3. The first instruction of the kernel is at 0x10000c
+4. The bootloader decides to read sectors based on the ELFHDR it gets from the
+   disk. It uses ELFHDR->e_phoff to find the first Proghdr*, and reads one
+   segment into memory per sequential Proghdr* until it reaches ELFHDR->e_phnum.
+
+Questions, Exercise 8:
+1. The interface between the two is the function putch, which is defined in
+   kern/printf.c. This function is passed through to the function vprintfmt
+   defined in lib/printfmt.c as a way of putting a character on the console.
+   kern/printf.c achieves this by, in turn, calling cputchar defined in
+   kern/console.c.
+2. This line of code scrolls the screen if we reach the end (aka CRT_SIZE) of
+   the buffer. It then prints a line of black/white spaces on the created line
+   on the output.
+3. In the call to cprintf(), fmt points to the unformatted string and ap points
+   to a list of arguments that were passed into cprintf()
+   
+   cons_putc (+args)
+   va_arg (what ap points to before and after)
+   vcprintf (list the value of its two arguments)
+   
+   01 - vcprintf (fmt=0xf0101a52, ap=0xf010ffe4), *fmt = our unformatted string
+                                                  *ap  = the value of 1
+   02 - cons_putc: c = 120 'x'
+   03 - cons_putc: c = 32  ' '
+   04 - va_arg:    before: *ap = '\001', after: *ap = '\003'
+   05 - cons_putc: c = 49  '1'
+   06 - cons_putc: c = 44  ','
+   07 - cons_putc: c = 32  ' '
+   08 - cons_putc: c = 121 'y'
+   09 - cons_putc: c = 32  ' '
+   0a - va_arg:    before: *ap = '\003', after: *ap = '\004'
+   0b - cons_putc: c = 51  '3'
+   0c - cons_putc: c = 44  ','
+   0d - cons_putc: c = 32  ' '
+   0e - cons_putc: c = 122 'z'
+   0f - cons_putc: c = 32  ' '
+   10 - va_arg:    before: *ap = '\004', after: *ap = '\000'
+   11 - cons_putc: c = 52  '4'
+   12 - cons_putc: c = 10  '\n'
+
+4. The output is, upsettingly enough, He110 World. Doing the same rigamarole
+   as before:
+
+   unsigned int i = 0x00646c72;
+   cprintf("H%x Wo%s", 57616, &i);
+
+   01 - vcprintf (fmt=0xf0101a52 "H%x Wo%s", ap=0xf010ffd4)
+   02 - cons_putc: c = 72  'H'
+   03 - va_arg:    before: *ap = '\341' after: *ap = '\020'
+   04 - va_arg:    before: *ap = '\020' after: *ap = '\000'
+   05 - cons_putc: c = 101 'e'
+   06 - cons_putc: c = 49  '1'
+   07 - cons_putc: c = 49  '1'
+   08 - cons_putc: c = 48  '0'
+   09 - cons_putc: c = 32  ' '
+   0a - cons_putc: c = 87  'W'
+   0b - cons_putc: c = 111 'o'
+   0c - va_arg:    before: *ap = '\000' after: *ap = '\000'
+   0d - cons_putc: c = 114 'r'
+   0e - va_arg:    before: *ap = '\000' after: *ap = '\000'
+   0f - cons_putc: c = 108 'l'
+   10 - va_arg:    before: *ap = '\000' after: *ap = '\000'
+   11 - cons_putc: c = 100 'd'
+
+   Here, we see that 57616 has the binary value of 
+     11100001 00010000
+   which means that little-endian - wise, we'll first have the octet
+     11100001
+   then
+     00010000
+   because
+   11100001 = 0xe1
+   00010000 = 0x10
+   we print out "e110"
+   If we were to have switched this out for a big-endian machine, we would use
+   the number 00010000 11100001 which is 4321 in decimal!
+
+   For i, we have 0x00646c72, and when we cast it to a pointer we reference the
+   octets 72, 6c, 64, 00 in that order, which map to 'r', 'l', 'd', '\0'. On a 
+   big-endian machine, we need to set i to 0x726c6400 to achieve the same effect
+
+5. For me, it is printing out
+   > x=3 y=1604
+   but more generally, the value of y will be the value of the 32 bits lying
+   at va_end(ap), or, if I misunderstand that, should be the value after 3 on
+   the ap.
+
+6. Holding everything else constant, you would want to make sure that va_arg
+   decremented the ap pointer by sizeof(type), because the arguments would be
+   pushed in the reverse order.
+
+Questions, Exercise 10:
+1. Each recursive call to test_backtrace involves two pushes of 32 bit words:
+   One is pushing the %ebp, which is standard GCC prelude convention
+   The other is pushing %ebx, which is saving the register to be restored later

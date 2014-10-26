@@ -1,0 +1,56 @@
+Questions, Lab 4:
+
+1. When the code in mpentry.S is linked, it is linked at a high kernel virtual
+   address. However, when one of the APs is starting up, it is in real mode
+   and will not understand the extremely high memory addresses since it does
+   not have a kernel page directory yet. So, what MPBOOTPHYS does is it takes
+   the linked address of its argument (which will be above KERNBASE), and
+   subtracts from it the value of the start of the code we move (mpentry_start)
+   to get an offset. We then add that offset to MPENTRY_PADDR, which is the
+   physical address of where the BSP moved the code. We then have a correct
+   physical address (which we need because the AP is in real mode) that is
+   independent of where the code was linked.
+
+   This is not necessary in boot.S because that code is linked explicitly with
+   a start point of 0x7c00 since it's meant to be run in real mode. The rest of
+   the kernel, including mpentry.S, lives in a binary that is linked separately
+   which starts at KERNBASE, which means we have to do some translation if we
+   want to get a processor to run it in real mode.
+
+   If MPBOOTPHYS were omitted in mpentry, the AP would start at an absurdly
+   high physical address, and would fault.
+
+2. Having multiple kernel stacks ensures that when a CPU stores a trap frame on
+   its kernel stack, no other CPU will pop that trap frame off later. Even
+   though there is a lock, we don't acquire the lock before we hit an interrupt
+   and push the trap frame, so for example:
+
+   1) Process 0 on CPU 0 can hit an interrupt in user mode and push its trap
+      frame onto the shared stack.
+   2) Before Process 0 realizes that it got interrupted in user mode (by
+      checking the low-order 3 bits), Process 1 on CPU 1 can hit an interrupt
+      and push its trap frame onto the shared stack.
+   3) Process 0 acquires the big kernel lock, does its work in the kernel, and
+      pops off CPU 1's trap frame when it returns to user mode. Oops.
+
+   This is bad even in Symmetric Multi-Processing because, for example, if the
+   interrupt in Process 1 was a system call, CPU 0 would start the Process again
+   without having the proper return value saved, leading to an incorrect
+   Process 1.
+
+3. My code is able to reference the value of e before and after the context
+   switch in env_run due to the way we set up env_pgdir and kern_pgdir. We gave
+   both of them the same pgdir entries above UTOP in env_setup_vm. In the
+   specific case of env_run, we are able to still use e with no problems because
+   it lives above UTOP in the kernel's realm, so the virtual address gets
+   mapped to the same physical address in any e->env_pgdir and also kern_pgdir.
+
+4. The old environment's registers need to be saved on environment switch so
+   that when the old environment is run again, it can be restarted from exactly
+   the state that it left off from. Thus, when a program is interrupted, it can
+   be restarted later without it even "knowing" that anything had changed.
+
+   This happens when _alltraps is called, and it pushes all the processor's
+   registers onto the kernel stack. The function trap() is then called, which
+   takes advantage of gcc's calling conventions to convert those stack-pushed
+   values into a "passed" Trapframe.

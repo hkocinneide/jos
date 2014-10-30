@@ -82,7 +82,7 @@ duppage(envid_t envid, unsigned pn)
     return -1;
   }
 
-  if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW))
+  if (!(uvpt[pn] & PTE_SHARE) && ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)))
   {
     // cprintf("[%08x]Mapping va 0x%08x in the child as PTE_COW\n", sys_getenvid(),
     //                                                             va);
@@ -101,7 +101,7 @@ duppage(envid_t envid, unsigned pn)
   {
     // cprintf("[%08x]Mapping va 0x%08x in the child as ro\n", sys_getenvid(),
     //                                                               va);
-    if ((r = sys_page_map(0, va, envid, va, PTE_P | PTE_U)) < 0)
+    if ((r = sys_page_map(0, va, envid, va, (PTE_SYSCALL & uvpt[pn]) | PTE_P | PTE_U)) < 0)
     {
       panic("fork: duppage: Error in sys_page_map for child ro env: %e", r);
     }
@@ -128,6 +128,7 @@ duppage(envid_t envid, unsigned pn)
 envid_t
 fork(void)
 {
+  cprintf("forking...\n");
   set_pgfault_handler(pgfault);
 
   envid_t envid;

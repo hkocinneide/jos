@@ -301,6 +301,30 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+
+  int i;
+  for (i = 0; i < PDX(UTOP); i++)
+  {
+    if (uvpd[i] & PTE_P)
+    {
+      int j;
+      for (j = 0; j < NPTENTRIES; j++)
+      {
+        int pgnum = i * NPTENTRIES + j;
+        if ((uvpt[pgnum] & PTE_P) && (uvpt[pgnum] & PTE_SHARE))
+        {
+          int r;
+          void *va = (void *)(pgnum * PGSIZE);
+          if ((r = sys_page_map(0, va, child, va, (uvpt[pgnum] & PTE_SYSCALL) | PTE_U | PTE_P)) < 0)
+          {
+            cprintf("copy_shared_pages: could not map page, error %e", r);
+            return r;
+          }
+          cprintf("spawn: copied shared page at %08x\n", (uintptr_t) va);
+        }
+      }
+    }
+  }
 	return 0;
 }
 

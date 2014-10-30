@@ -450,7 +450,7 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-  pde_t *pde = pgdir + PDX(va);
+  pde_t *pde = &pgdir[PDX(va)];
   pte_t *pt;
 
   // If the pte is present, no prob bob
@@ -458,7 +458,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
     // Base of page table
     pt = KADDR(PTE_ADDR(*pde));
     // Return the pointer with va's offset into pt
-    return pt + PTX(va);
+    return &pt[PTX(va)];
   }
 
   // Else, page table doesn't exist yet
@@ -481,7 +481,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 
   // Now that we have a new table, we can return the proper pointer in
   pt = KADDR(PTE_ADDR(*pde));
-  return pt + PTX(va);
+  return &pt[PTX(va)];
 }
 
 //

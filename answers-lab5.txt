@@ -1,0 +1,9 @@
+Questions:
+
+1. We do not have to do anything else to ensure taht this I/O privilege setting
+   is maintained. This is because when we switch from user mode to kernel mode
+   we make sure to push all the CPUs registers, including the EFLAGS register
+   with the bits that we modified, onto the TSS. When we go back to the file
+   system's environment, we restore the EFLAGS, with the proper FL_IOPL_3 bits
+   set. If we switch environments, we recover another environments' EFLAGS,
+  which will not be set to FL_IOPL_3.

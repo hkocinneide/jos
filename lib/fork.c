@@ -29,11 +29,11 @@ pgfault(struct UTrapframe *utf)
   pte_t pte = uvpt[PGNUM((uint32_t)addr)];
   if (!(pte & PTE_COW))
   {
-    panic("fork: pgfault: not a copy-on-write page");
+    panic("fork: pgfault: not a copy-on-write page at va %08x, eip %08x", (uintptr_t)addr, (uintptr_t)utf->utf_eip);
   }
   if (!(err & FEC_WR))
   {
-    panic("fork: pgfault: not a write-caused fault");
+    panic("fork: pgfault: not a write-caused fault at va %08x, eip %08x", (uintptr_t)addr, (uintptr_t)utf->utf_eip);
   }
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),

@@ -1,7 +1,7 @@
 #include <inc/x86.h>
 #include <inc/lib.h>
 
-#define VA	((char *) 0xA0000000)
+#define VA	((char *) 0xA0001000)
 const char *msg = "hello, world\n";
 const char *msg2 = "goodbye, world\n";
 

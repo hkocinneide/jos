@@ -36,7 +36,7 @@ bc_pgfault(struct UTrapframe *utf)
 
   addr = (void *)ROUNDDOWN((uintptr_t) addr, PGSIZE);
 
-  if ((r=sys_page_alloc(thisenv->env_id, addr, PTE_P | PTE_W | PTE_U)) < 0)
+  if ((r=sys_page_alloc(0, addr, PTE_P | PTE_W | PTE_U)) < 0)
   {
     panic("bc_pgfault: Cannot alloc page, error: %e", r);
   }

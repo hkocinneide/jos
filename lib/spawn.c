@@ -28,6 +28,7 @@ spawn(const char *prog, const char **argv)
 	struct Proghdr *ph;
 	int perm;
 
+  cprintf("spawn: spawning\n");
 	// This code follows this procedure:
 	//
 	//   - Open the program file.
@@ -87,10 +88,12 @@ spawn(const char *prog, const char **argv)
 
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
+  cprintf("spawn: done\n");
 	fd = r;
 
 	// Read elf header
 	elf = (struct Elf*) elf_buf;
+  cprintf("spawn: done, elf_buf %08x\n", (uintptr_t)elf_buf);
 	if (readn(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)
 	    || elf->e_magic != ELF_MAGIC) {
 		close(fd);
@@ -303,7 +306,7 @@ copy_shared_pages(envid_t child)
 	// LAB 5: Your code here.
 
   int i;
-  for (i = 0; i < PDX(UTOP); i++)
+  for (i = PDX(UTEXT); i < PDX(UTOP); i++)
   {
     if (uvpd[i] & PTE_P)
     {

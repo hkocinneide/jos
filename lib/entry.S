@@ -21,7 +21,6 @@
 _start:
 	// See if we were started with arguments on the stack
 	cmpl $USTACKTOP, %esp
-
   jne args_exist
 	
 

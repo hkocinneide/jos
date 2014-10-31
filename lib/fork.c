@@ -57,6 +57,7 @@ pgfault(struct UTrapframe *utf)
   }
 }
 
+
 //
 // Map our virtual page pn (address pn*PGSIZE) into the target envid
 // at the same virtual address.  If the page is writable or copy-on-write,
@@ -107,6 +108,33 @@ duppage(envid_t envid, unsigned pn)
     }
   }
 	return 0;
+  /*
+  // DUMBFORK FOR TESTING
+	int r;
+
+  envid_t dstenv = envid;
+  void *addr = (void *)(pn * PGSIZE);
+  void *va = addr;
+	// This is NOT what you should do in your fork.
+  if (uvpt[pn] & PTE_SHARE)
+  {
+    if ((r = sys_page_map(0, va, envid, va, (PTE_SYSCALL & uvpt[pn]) | PTE_P | PTE_U)) < 0)
+    {
+      panic("fork: duppage: Error in sys_page_map for child ro env: %e", r);
+    }
+  }
+  else
+  {
+    if ((r = sys_page_alloc(dstenv, addr, (uvpt[pn] & PTE_SYSCALL) | PTE_W)) < 0)
+      panic("sys_page_alloc: %e", r);
+    if ((r = sys_page_map(dstenv, addr, 0, UTEMP, PTE_U | PTE_P | PTE_W)) < 0)
+      panic("sys_page_map: %e", r);
+    memmove(UTEMP, addr, PGSIZE);
+    if ((r = sys_page_unmap(0, UTEMP)) < 0)
+      panic("sys_page_unmap: %e", r);
+  }
+  return 0;
+  */
 }
 
 //

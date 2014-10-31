@@ -28,7 +28,6 @@ spawn(const char *prog, const char **argv)
 	struct Proghdr *ph;
 	int perm;
 
-  cprintf("spawn: spawning\n");
 	// This code follows this procedure:
 	//
 	//   - Open the program file.
@@ -88,12 +87,10 @@ spawn(const char *prog, const char **argv)
 
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
-  cprintf("spawn: done\n");
 	fd = r;
 
 	// Read elf header
 	elf = (struct Elf*) elf_buf;
-  cprintf("spawn: done, elf_buf %08x\n", (uintptr_t)elf_buf);
 	if (readn(fd, elf_buf, sizeof(elf_buf)) != sizeof(elf_buf)
 	    || elf->e_magic != ELF_MAGIC) {
 		close(fd);
@@ -323,7 +320,6 @@ copy_shared_pages(envid_t child)
             cprintf("copy_shared_pages: could not map page, error %e", r);
             return r;
           }
-          cprintf("spawn: copied shared page at %08x\n", (uintptr_t) va);
         }
       }
     }

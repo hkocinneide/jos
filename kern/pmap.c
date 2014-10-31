@@ -553,6 +553,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
   // Propegate permissions up to the pgdir
   pgdir[PDX(va)] |= perm;
   
+  tlb_invalidate(pgdir, va);
   return 0;
 }
 
@@ -571,10 +572,10 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
   pte_t *pte = pgdir_walk(pgdir, va, 0);
-  if (pte_store) {
-    *pte_store = pte;
-  }
-  if (pte) {
+  if (pte && (*pte & PTE_P)) {
+    if (pte_store) {
+      *pte_store = pte;
+    }
     return pa2page(PTE_ADDR(*pte));
   }
   return NULL;
@@ -609,10 +610,8 @@ page_remove(pde_t *pgdir, void *va)
   
   // If there is a table entry (I don't see why there wouldn't be...)
   // set it to 0 and invalidate the translation lookaside buffer
-  if (pte) {
-    *pte = 0;
-    tlb_invalidate(pgdir, va);
-  }
+  *pte = 0;
+  tlb_invalidate(pgdir, va);
 }
 
 //

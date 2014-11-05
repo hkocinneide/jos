@@ -63,8 +63,8 @@ def hexdump(data):
         buf.append("%04x   %-40s  %s" % (i, hd, ad))
     return "\n".join(buf)
 
-echo_port = QEMU.get_gdb_port() + 1
-http_port = QEMU.get_gdb_port() + 2
+echo_port = QEMU.get_gdb_port() + 1000
+http_port = QEMU.get_gdb_port() + 2000
 
 socket.setdefaulttimeout(5)
 

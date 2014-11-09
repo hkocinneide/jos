@@ -46,7 +46,9 @@ umain(int argc, char **argv)
 	nloff = 0;
 	for (off=0;; off++) {
 		n1 = read(rfd, &c1, 1);
+    cprintf("testshell.key's fd: %d\n", kfd);
 		n2 = read(kfd, &c2, 1);
+    cprintf("testshell.key's first char: %d\n", c2);
 		if (n1 < 0)
 			panic("reading testshell.out: %e", n1);
 		if (n2 < 0)

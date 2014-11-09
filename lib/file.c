@@ -68,7 +68,6 @@ open(const char *path, int mode)
 
 	int r;
 	struct Fd *fd;
-
 	if (strlen(path) >= MAXPATHLEN)
 		return -E_BAD_PATH;
 

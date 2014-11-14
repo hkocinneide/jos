@@ -24,3 +24,30 @@ Part A
    simply returns a new error value I made. The system call is just a thin
    wrapper around this functionality, and is meant to be called in a loop that
    will keep trying until the transmit succeeds.
+
+2. I structured my receive implementation by having a system call that
+   immediately failed if the buffer was empty. The proper calling convention
+   then is to call it in a while loop (which, of course, will block if there's
+   nothing on the wire) and will return a success/failure value, as well as
+   the length of the packet that was received.
+
+   Although this is obviously not an ideal configuration, it follows the
+   standard that IPC send/receive started in Lab 4. If you aren't able to
+   receive something, your user program blocks forever.
+
+3. The page served by JOS says
+
+   This file came from JOS.
+   Cheesy web page!
+
+   I think most modern browsers have stopped supporting the blink tag (sorry,
+   Geocities), but this is indeed a cheesy webpage that fits into one ethernet
+   packet!
+
+4. Around 25 hours.
+
+   This lab was real hell for me, mainly because I started late and never asked
+   any questions. Things like the grading script update, the fact that python
+   writes udp packets faster than JOS can read them (what a pain that was to
+   debug), and a spuriously-working MAC address detection all lead to this being
+   needlessly painful. But it's over! Hooray!

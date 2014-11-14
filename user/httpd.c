@@ -246,10 +246,7 @@ send_file(struct http_request *req)
   }
 
   if ((r = fstat(fd, &stat)) < 0)
-  {
-    send_error(req, 501);
     goto end;
-  }
 
   if (stat.st_isdir)
   {

@@ -61,16 +61,27 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
-  int r = -1;
-  while (r < 0)
+  int r;
+  
+  if (!pg)
   {
-    if((r = sys_ipc_try_send(to_env, val, pg, perm)) < 0)
+    pg = (void *)UTOP;
+    perm = 0;
+  }
+
+  while (1)
+  {
+    if ((r = sys_ipc_try_send(to_env, val, pg, perm)) < 0)
     {
       if (r != -E_IPC_NOT_RECV)
       {
         panic("ipc_send: %e, %d", r, r);
       }
       sys_yield();
+    }
+    else
+    {
+      break;
     }
   }
 }

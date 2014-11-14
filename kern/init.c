@@ -16,6 +16,7 @@
 #include <kern/spinlock.h>
 #include <kern/time.h>
 #include <kern/pci.h>
+#include <kern/e1000.h>
 
 static void boot_aps(void);
 
@@ -74,6 +75,7 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
+  e1000_transmit((uint8_t *)"fuck", 5);
 	ENV_CREATE(user_icode, ENV_TYPE_USER);
 #endif // TEST*
 

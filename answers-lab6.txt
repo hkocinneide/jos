@@ -1,0 +1,26 @@
+Lab 6
+Part A
+
+1. I structured my transmit function using a very simple mechanism aimed for
+   debugging efficiency. I used global variables to store the memory for the
+   Transmit Descriptors and their respective buffers. Although I feel that
+   mapping pages would be a cleaner solution, I wanted to keep the mechanisms
+   as simple as possible to ensure that any problem would be easy to trace.
+
+   My first design decision was to make an e1000 variable in much the same way
+   that the lapic variable was used. It is set to the return value of my
+   mmio allocation function. In the kern/e1000.h file, I made sure that all of
+   the memory addresses for the accessbile registers were divided by 4, so that
+   I could use them to index into my e1000 uint32_t array.
+
+   Getting further into it, I decided to have 64 Transmit Descriptors just
+   because that is what the spec said that maximum number should be, and the
+   more I have the more efficient my network might be.
+
+   After initializing the registers in E1000 just as the Intel manual says to in
+   Section 14.5, I make my circular queue of descriptors work by initially
+   setting their E1000_TDESC_STATUS_DD bit, ensuring that they will be writable.
+   If we come around the buffer and hit a untransmitted descriptor, the function
+   simply returns a new error value I made. The system call is just a thin
+   wrapper around this functionality, and is meant to be called in a loop that
+   will keep trying until the transmit succeeds.

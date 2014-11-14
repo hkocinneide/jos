@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -478,11 +479,36 @@ sys_ipc_recv(void *dstva)
 }
 
 // Return the current time.
-static int
+static uint32_t
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+  return time_msec();
+}
+
+static int
+sys_net_transmit(uint8_t *data, uint32_t len)
+{
+  if ((uintptr_t) data >= UTOP)
+    return -E_INVAL;
+
+  return e1000_transmit(data, len);
+}
+
+static int
+sys_net_receive(uint8_t *data, uint32_t *len)
+{
+  if ((uintptr_t) data >= UTOP)
+    return -E_INVAL;
+
+  int ret = e1000_receive(data);
+  if (ret > 0)
+  {
+    *len = ret;
+    ret = 0;
+  }
+
+  return ret;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -527,6 +553,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_ipc_try_send((envid_t) a1, (uint32_t) a2, (void *) a3, (unsigned) a4);
     case SYS_ipc_recv:
       return sys_ipc_recv((void *) a1);
+    case SYS_time_msec:
+      return sys_time_msec();
+    case SYS_net_transmit:
+      return sys_net_transmit((uint8_t *)a1, (uint32_t)a2);
+    case SYS_net_receive:
+      return sys_net_receive((uint8_t *)a1, (uint32_t *)a2);
 	default:
 		return -E_NO_SYS;
 	}

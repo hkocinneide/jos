@@ -269,6 +269,7 @@ trap_dispatch(struct Trapframe *tf)
                                   tf->tf_regs.reg_esi);
     break;
   case (IRQ_TIMER + IRQ_OFFSET):
+    time_tick();
     lapic_eoi();
     sched_yield();
     break;
@@ -402,7 +403,7 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 4: Your code here.
 
-  cprintf("[%08x] Trap triggered at va 0x%x from eip 0x%x\n", curenv->env_id, fault_va, tf->tf_eip);
+  // cprintf("[%08x] Trap triggered at va 0x%x from eip 0x%x\n", curenv->env_id, fault_va, tf->tf_eip);
   if (curenv->env_pgfault_upcall)
   {
     // cprintf("page_fault_handler: allocating a frame on the exception stack\n");

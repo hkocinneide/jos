@@ -142,6 +142,7 @@ def test_testinput_helper(count):
                                 r.qemu.output):
         if off == "0000" or not got:
             got.append("")
+        dump = dump.encode('utf-8', 'ignore')
         got[-1] += re.sub("[0-9a-f]{2}", lambda m: chr(int(m.group(), 16)),
                           dump.replace(" ", ""))
 

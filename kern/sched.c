@@ -40,6 +40,10 @@ sched_yield(void)
     {
       env_run(&envs[n]);
     }
+    else if (envs[n].env_status == ENV_NOT_RUNNABLE)
+    {
+      // cprintf("Not Runnable Env #%d\n", n);
+    }
   }
   
   if (envs[lastenv].env_status == ENV_RUNNING)

@@ -39,6 +39,7 @@ announce(void)
 	memset(arp->dhwaddr.addr,  0x00,  ETHARP_HWADDR_LEN);
 	memcpy(arp->dipaddr.addrw, &gwip, 4);
 
+  cprintf("Got THIS far\n");
 	ipc_send(output_envid, NSREQ_OUTPUT, pkt, PTE_P|PTE_W|PTE_U);
 	sys_page_unmap(0, pkt);
 }
@@ -92,9 +93,11 @@ umain(int argc, char **argv)
 	announce();
 
 	while (1) {
+    cprintf("At beginning of while\n");
 		envid_t whom;
 		int perm;
 
+    cprintf("Receiving IPC...\n");
 		int32_t req = ipc_recv((int32_t *)&whom, pkt, &perm);
 		if (req < 0)
 			panic("ipc_recv: %e", req);

@@ -247,7 +247,7 @@ nc-80:
 	nc localhost $(PORT80)
 
 nc-7:
-	nc localhost $(PORT7)
+	nc 127.0.0.1 $(PORT7)
 
 telnet-80:
 	telnet localhost $(PORT80)

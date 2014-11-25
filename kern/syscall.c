@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/jthread.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -511,6 +512,27 @@ sys_net_receive(uint8_t *data, uint32_t *len)
   return ret;
 }
 
+static int
+sys_kthread_create(jthread_t tid, void *entry, void *arg)
+{
+  struct Env *e;
+  if (envid2env(tid, &e, 0) < 0)
+    return -E_INVAL;
+  return 0;
+}
+
+static int
+sys_kthread_join(jthread_t tid)
+{
+  return 0;
+}
+
+static int
+sys_kthread_exit(void *retval)
+{
+  return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -559,8 +581,13 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_net_transmit((uint8_t *)a1, (uint32_t)a2);
     case SYS_net_receive:
       return sys_net_receive((uint8_t *)a1, (uint32_t *)a2);
+    case SYS_kthread_create:
+      return sys_kthread_create((jthread_t)a1, (void *)a2, (void *)a3);
+    case SYS_kthread_join:
+      return sys_kthread_join((jthread_t)a1);
+    case SYS_kthread_exit:
+      return sys_kthread_exit((void *)a1);
 	default:
 		return -E_NO_SYS;
 	}
 }
-

@@ -1,12 +1,12 @@
 #include <inc/lib.h>
 #include <inc/jthread.h>
 
-int
+void *
 countTo100(int c)
 {
   if (c == 100)
-    return 1;
-  return countTo100(c++);
+    return (void *)1;
+  return (void *)countTo100(c++);
 }
 
 void

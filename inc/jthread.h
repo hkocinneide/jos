@@ -2,8 +2,8 @@
 // Hugh O'Cinneide
 // November 2014
 
-#ifndef INC_JTHREAD_H
-#define INC_JTHREAD_H
+#ifndef JOS_INC_JTHREAD_H
+#define JOS_INC_JTHREAD_H
 
 #include <inc/types.h>
 
@@ -16,4 +16,11 @@ jthread_create(jthread_t *thread,
                void *(*start_routine)(void *),
                void *arg);
 
-#endif // !INC_JTHREAD_H
+int
+jthread_join(jthread_t th,
+             void **thread_return);
+
+void
+jthread_exit(void *retval);
+
+#endif // !JOS_INC_JTHREAD_H

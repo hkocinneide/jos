@@ -20,6 +20,9 @@ enum {
 	SYS_time_msec,
   SYS_net_transmit,
   SYS_net_receive,
+  SYS_kthread_create,
+  SYS_kthread_join,
+  SYS_kthread_exit,
 	NSYSCALLS
 };
 

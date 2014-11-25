@@ -67,6 +67,10 @@ struct Env {
 	uint32_t env_ipc_value;		// Data value sent to us
 	envid_t env_ipc_from;		// envid of the sender
 	int env_ipc_perm;		// Perm of page mapping received
+
+  // Final Multithreading
+  bool child_thread;     // Are we a thread?
+  envid_t process_envid; // If so, what is our process?
 };
 
 #endif // !JOS_INC_ENV_H

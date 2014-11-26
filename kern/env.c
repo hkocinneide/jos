@@ -280,6 +280,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
   e->env_next_thread = NULL;
   e->env_thread_retval = NULL;
   e->env_thread_status = THREAD_NOT_RUNNABLE;
+  e->env_num_threads = 0;
 
 	// commit the allocation
 	env_free_list = e->env_link;

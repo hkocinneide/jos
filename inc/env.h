@@ -74,6 +74,7 @@ struct Env {
   struct Env *env_next_thread;   // Linked list of threads in a process
   unsigned env_thread_status;    // Thread-specific status information
   void *env_thread_retval;       // Value that the thread is returning on thread_join
+  int env_num_threads;
 };
 
 #endif // !JOS_INC_ENV_H

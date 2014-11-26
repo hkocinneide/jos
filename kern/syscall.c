@@ -15,6 +15,8 @@
 #include <kern/time.h>
 #include <kern/e1000.h>
 
+#define DEBUGTHREAD 1
+
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
 // Destroys the environment on memory errors.
@@ -515,7 +517,8 @@ sys_net_receive(uint8_t *data, uint32_t *len)
 static int
 sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
 {
-  cprintf("Making new thread with id: %d\n", tid);
+  if (DEBUGTHREAD)
+    cprintf("[%08x] Making new thread with id: %08x\n", curenv->env_id, tid);
   // Find the Env
   struct Env *e;
   if (envid2env(tid, &e, 0) < 0)
@@ -525,6 +528,21 @@ sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
 
   e->env_child_thread = true;
   e->env_process_envid = curenv->env_process_envid;
+
+  struct Env *process;
+  if (envid2env(e->env_process_envid, &process, 0) < 0)
+    return -E_INVAL;
+  if (DEBUGTHREAD)
+    cprintf("Our process's envid: %08x\n", process->env_id);
+  // Sanity check about the calling process
+  if (!(process->env_status == ENV_NOT_RUNNABLE ||
+        process->env_status == ENV_RUNNABLE ||
+        process->env_status == ENV_RUNNING))
+    return -E_INVAL;
+  process->env_num_threads++;
+  int threadnum = process->env_num_threads;
+  if (DEBUGTHREAD)
+    cprintf("%08x's Thread number %d\n", e->env_id, threadnum);
 
   // Find the last thread on the linked list
   struct Env *next_thread = curenv;
@@ -541,26 +559,32 @@ sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
   // TODO: Make this scale for more than one thread
 
   struct PageInfo *page;
-  void *va = (void*)(USTACKTOP - (3 * PGSIZE));
+  void *va = (void*)(USTACKTOP - ((threadnum * 2 + 1) * PGSIZE));
   int perm = PTE_P | PTE_U | PTE_W;
   if (!(page = page_alloc(0)))
     return -E_NO_MEM;
   if (page_insert(e->env_pgdir, page, va, perm) < 0)
     return -1;
-  cprintf("New page mapped at va:0x%08x\n", (uintptr_t)va);
+  if (DEBUGTHREAD)
+    cprintf("New page mapped at va:0x%08x\n", (uintptr_t)va);
 
-  uint32_t *kva = (uint32_t *)page2kva(page);
-  *(kva + (PGSIZE / 4) - 1) = (uint32_t)arg;
-  *(kva + (PGSIZE / 4) - 2) = (uint32_t)start;
+  // Put the arguments on the stack
+  void *kva = page2kva(page);
+  *(uint32_t *)(kva + PGSIZE - 4) = (uint32_t)arg;
+  *(uint32_t *)(kva + PGSIZE - 8) = (uint32_t)start;
 
+  // Set the eip and esp to the new values
   e->env_tf.tf_eip = (uintptr_t)entry;
   e->env_tf.tf_esp = (uintptr_t)(va + PGSIZE - 12);
 
   e->env_status = ENV_RUNNABLE;
   
-  cprintf("Made a runnable thread\n");
-  cprintf("Thread's eip: %08x\n", e->env_tf.tf_eip);
-  cprintf("Thread's esp: %08x\n", e->env_tf.tf_esp);
+  if (DEBUGTHREAD)
+  {
+    cprintf("Made a runnable thread\n");
+    cprintf("Thread's eip: %08x\n", e->env_tf.tf_eip);
+    cprintf("Thread's esp: %08x\n", e->env_tf.tf_esp);
+  }
   return 0;
 }
 
@@ -573,9 +597,13 @@ sys_kthread_join(jthread_t tid, void **retstore)
   if (e->env_thread_status != THREAD_ZOMBIE)
     return -1;
 
+  // Set retval in the calling env's vm space
   struct PageInfo *page = page_lookup(e->env_pgdir, (void *)retstore, NULL);
-  uint32_t *kva = (uint32_t *)((void *)page2kva(page) + PGOFF(retstore));
+  uint32_t *kva = (uint32_t *)(page2kva(page) + PGOFF(retstore));
   *kva = (uint32_t)e->env_thread_retval;
+
+  // Free the env we reaped
+  // env_destroy(e);
 
   return 0;
 }

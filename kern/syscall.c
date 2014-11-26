@@ -515,7 +515,7 @@ sys_net_receive(uint8_t *data, uint32_t *len)
 static int
 sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
 {
-  cprintf("Making new thread\n");
+  cprintf("Making new thread with id: %d\n", tid);
   // Find the Env
   struct Env *e;
   if (envid2env(tid, &e, 0) < 0)
@@ -565,15 +565,28 @@ sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
 }
 
 static int
-sys_kthread_join(jthread_t tid)
+sys_kthread_join(jthread_t tid, void **retstore)
 {
+  struct Env *e;
+  if (envid2env(tid, &e, 0) < 0)
+    return -1;
+  if (e->env_thread_status != THREAD_ZOMBIE)
+    return -1;
+
+  struct PageInfo *page = page_lookup(e->env_pgdir, (void *)retstore, NULL);
+  uint32_t *kva = (uint32_t *)((void *)page2kva(page) + PGOFF(retstore));
+  *kva = (uint32_t)e->env_thread_retval;
+
   return 0;
 }
 
 static int
 sys_kthread_exit(void *retval)
 {
-  sys_env_destroy(0);
+  cprintf("In jthread_exit\n");
+  curenv->env_thread_status = THREAD_ZOMBIE;
+  curenv->env_thread_retval = retval;
+  curenv->env_status = ENV_NOT_RUNNABLE;
   return 0;
 }
 
@@ -628,7 +641,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
     case SYS_kthread_create:
       return sys_kthread_create((jthread_t)a1, (void *)a2, (void *)a3, (void *)a4);
     case SYS_kthread_join:
-      return sys_kthread_join((jthread_t)a1);
+      return sys_kthread_join((jthread_t)a1, (void **)a2);
     case SYS_kthread_exit:
       return sys_kthread_exit((void *)a1);
 	default:

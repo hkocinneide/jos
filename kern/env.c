@@ -6,6 +6,7 @@
 #include <inc/string.h>
 #include <inc/assert.h>
 #include <inc/elf.h>
+#include <inc/jthread.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -278,6 +279,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
   e->env_process_envid = e->env_id;
   e->env_next_thread = NULL;
   e->env_thread_retval = NULL;
+  e->env_thread_status = THREAD_NOT_RUNNABLE;
 
 	// commit the allocation
 	env_free_list = e->env_link;

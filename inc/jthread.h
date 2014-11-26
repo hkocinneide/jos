@@ -10,6 +10,13 @@
 typedef int32_t jthread_t;
 typedef uint32_t jthread_attr_t;
 
+enum {
+  THREAD_NOT_RUNNABLE = 0,
+  THREAD_RUNNABLE,
+  THREAD_ZOMBIE,
+  THREAD_DONE
+};
+
 int
 jthread_create(jthread_t *thread,
                const jthread_attr_t *attr,

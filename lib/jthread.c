@@ -31,6 +31,7 @@ jthread_create(jthread_t *thread,
   if (sys_kthread_create(tid, (void *)jthread_main, (void *)start_routine, arg) < 0)
     return -1;
   
+  *thread = tid;
 
   return 0;
 }
@@ -38,11 +39,13 @@ jthread_create(jthread_t *thread,
 int
 jthread_join(jthread_t th, void **thread_return)
 {
+  cprintf("In jthread_join\n");
   void *ret = 0;
-  while ((ret = (void *)sys_kthread_join(th)) < 0)
+  while ((int)(ret = (void *)sys_kthread_join(th, thread_return)) < 0)
+  {
     sys_yield();
-
-  *thread_return = ret;
+  }
+  cprintf("Our of jthread_join\n");
   return 0;
 }
 

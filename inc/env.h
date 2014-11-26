@@ -72,6 +72,7 @@ struct Env {
   bool env_child_thread;         // Are we a thread?
   envid_t env_process_envid;     // If so, what is our process?
   struct Env *env_next_thread;   // Linked list of threads in a process
+  unsigned env_thread_status;    // Thread-specific status information
   void *env_thread_retval;       // Value that the thread is returning on thread_join
 };
 

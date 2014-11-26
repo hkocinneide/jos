@@ -143,9 +143,9 @@ sys_kthread_create(jthread_t tid, void *jthread_main, void *start_routine, void 
 }
 
 int
-sys_kthread_join(jthread_t tid)
+sys_kthread_join(jthread_t tid, void **retstore)
 {
-  return syscall(SYS_kthread_join, 0, tid, 0, 0, 0, 0);
+  return syscall(SYS_kthread_join, 0, tid, (uintptr_t)retstore, 0, 0, 0);
 }
 
 int

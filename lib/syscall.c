@@ -137,9 +137,9 @@ sys_net_receive(uint8_t *data, uint32_t *len)
 }
 
 int
-sys_kthread_create(jthread_t tid, void *(*jthread_main)(void *(*)(void *), void *), void *arg)
+sys_kthread_create(jthread_t tid, void *jthread_main, void *start_routine, void *arg)
 {
-  return syscall(SYS_kthread_create, 0, tid, (uintptr_t)jthread_main, (uintptr_t)arg, 0, 0);
+  return syscall(SYS_kthread_create, 0, tid, (uintptr_t)jthread_main, (uintptr_t)start_routine, (uintptr_t)arg, 0);
 }
 
 int

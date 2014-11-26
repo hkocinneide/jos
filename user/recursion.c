@@ -4,6 +4,7 @@
 void *
 countTo100(int c)
 {
+  cprintf("In countTo100\n");
   if (c == 100)
     return (void *)1;
   return (void *)countTo100(c++);
@@ -15,5 +16,8 @@ umain(int argc, char *argv[])
   // cprintf("In recursion.c\n");
   // countTo100(0);
   // cprintf("We counted to 100!\n");
-  cprintf("jthread: %d\n", jthread_create(NULL, NULL, NULL, NULL));
+  jthread_t tid;
+  cprintf("jthread: %d\n", jthread_create(&tid, NULL, (void *(*)(void *))countTo100, 0));
+  while(true)
+    sys_yield();
 }

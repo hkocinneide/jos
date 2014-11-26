@@ -8,6 +8,7 @@
 void *
 jthread_main(void *(*start_routine)(void *), void *arg)
 {
+  cprintf("In jthread_main\n");
   void *ret = start_routine(arg);
   jthread_exit(ret);
   // Should not reach here
@@ -27,7 +28,7 @@ jthread_create(jthread_t *thread,
   if ((tid = (jthread_t)sys_exofork()) < 0)
     return tid;
 
-  if (sys_kthread_create(tid, jthread_main, arg) < 0)
+  if (sys_kthread_create(tid, (void *)jthread_main, (void *)start_routine, arg) < 0)
     return -1;
   
 

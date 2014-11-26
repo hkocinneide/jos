@@ -63,7 +63,7 @@ int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
 int sys_net_transmit(uint8_t *data, uint32_t len);
 int sys_net_receive(uint8_t *data, uint32_t *len);
-int sys_kthread_create(jthread_t tid, void *(*jthread_main)(void *(*)(void *), void *), void *arg);
+int sys_kthread_create(jthread_t tid, void *jthread_main, void *start_routine, void *arg);
 int sys_kthread_join(jthread_t tid);
 int sys_kthread_exit(void *retval);
 

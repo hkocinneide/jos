@@ -69,8 +69,10 @@ struct Env {
 	int env_ipc_perm;		// Perm of page mapping received
 
   // Final Multithreading
-  bool child_thread;     // Are we a thread?
-  envid_t process_envid; // If so, what is our process?
+  bool env_child_thread;         // Are we a thread?
+  envid_t env_process_envid;     // If so, what is our process?
+  struct Env *env_next_thread;   // Linked list of threads in a process
+  void *env_thread_retval;       // Value that the thread is returning on thread_join
 };
 
 #endif // !JOS_INC_ENV_H

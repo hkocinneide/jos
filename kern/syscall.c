@@ -513,11 +513,54 @@ sys_net_receive(uint8_t *data, uint32_t *len)
 }
 
 static int
-sys_kthread_create(jthread_t tid, void *entry, void *arg)
+sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
 {
+  cprintf("Making new thread\n");
+  // Find the Env
   struct Env *e;
   if (envid2env(tid, &e, 0) < 0)
     return -E_INVAL;
+
+  // Set thread state
+
+  e->env_child_thread = true;
+  e->env_process_envid = curenv->env_process_envid;
+
+  // Find the last thread on the linked list
+  struct Env *next_thread = curenv;
+  while (next_thread->env_next_thread)
+    next_thread = next_thread->env_next_thread;
+  // Add this env to the thread list
+  next_thread->env_next_thread = e;
+
+  // Use the same address space and pgfault handler
+  e->env_pgdir = curenv->env_pgdir;
+  e->env_pgfault_upcall = curenv->env_pgfault_upcall;
+
+  // Allocate new stack
+  // TODO: Make this scale for more than one thread
+
+  struct PageInfo *page;
+  void *va = (void*)(USTACKTOP - (3 * PGSIZE));
+  int perm = PTE_P | PTE_U | PTE_W;
+  if (!(page = page_alloc(0)))
+    return -E_NO_MEM;
+  if (page_insert(e->env_pgdir, page, va, perm) < 0)
+    return -1;
+  cprintf("New page mapped at va:0x%08x\n", (uintptr_t)va);
+
+  uint32_t *kva = (uint32_t *)page2kva(page);
+  *(kva + (PGSIZE / 4) - 1) = (uint32_t)arg;
+  *(kva + (PGSIZE / 4) - 2) = (uint32_t)start;
+
+  e->env_tf.tf_eip = (uintptr_t)entry;
+  e->env_tf.tf_esp = (uintptr_t)(va + PGSIZE - 12);
+
+  e->env_status = ENV_RUNNABLE;
+  
+  cprintf("Made a runnable thread\n");
+  cprintf("Thread's eip: %08x\n", e->env_tf.tf_eip);
+  cprintf("Thread's esp: %08x\n", e->env_tf.tf_esp);
   return 0;
 }
 
@@ -530,6 +573,7 @@ sys_kthread_join(jthread_t tid)
 static int
 sys_kthread_exit(void *retval)
 {
+  sys_env_destroy(0);
   return 0;
 }
 
@@ -582,7 +626,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
     case SYS_net_receive:
       return sys_net_receive((uint8_t *)a1, (uint32_t *)a2);
     case SYS_kthread_create:
-      return sys_kthread_create((jthread_t)a1, (void *)a2, (void *)a3);
+      return sys_kthread_create((jthread_t)a1, (void *)a2, (void *)a3, (void *)a4);
     case SYS_kthread_join:
       return sys_kthread_join((jthread_t)a1);
     case SYS_kthread_exit:

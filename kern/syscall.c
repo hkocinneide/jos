@@ -515,8 +515,13 @@ sys_net_receive(uint8_t *data, uint32_t *len)
 }
 
 static int
-sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
+sys_kthread_create(void *entry, void *start, void *arg)
 {
+  jthread_t tid;
+
+  if ((tid = sys_exofork()) < 0)
+    return -1;
+
   if (DEBUGTHREAD)
     cprintf("[%08x] Making new thread with id: %08x\n", curenv->env_id, tid);
   // Find the Env
@@ -552,7 +557,8 @@ sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
   next_thread->env_next_thread = e;
 
   // Use the same address space and pgfault handler
-  e->env_pgdir = curenv->env_pgdir;
+  // e->env_pgdir = curenv->env_pgdir;
+  env_duplicate_pgdir(curenv, e);
   e->env_pgfault_upcall = curenv->env_pgfault_upcall;
 
   // Allocate new stack
@@ -585,7 +591,7 @@ sys_kthread_create(jthread_t tid, void *entry, void *start, void *arg)
     cprintf("Thread's eip: %08x\n", e->env_tf.tf_eip);
     cprintf("Thread's esp: %08x\n", e->env_tf.tf_esp);
   }
-  return 0;
+  return tid;
 }
 
 static int
@@ -667,7 +673,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
     case SYS_net_receive:
       return sys_net_receive((uint8_t *)a1, (uint32_t *)a2);
     case SYS_kthread_create:
-      return sys_kthread_create((jthread_t)a1, (void *)a2, (void *)a3, (void *)a4);
+      return sys_kthread_create((void *)a1, (void *)a2, (void *)a3);
     case SYS_kthread_join:
       return sys_kthread_join((jthread_t)a1, (void **)a2);
     case SYS_kthread_exit:

@@ -586,3 +586,33 @@ env_run(struct Env *e)
   unlock_kernel();
   env_pop_tf(&curenv->env_tf);
 }
+
+int
+env_duplicate_pgdir(struct Env *from_env, struct Env *to_env)
+{
+  pde_t *pd = (pde_t *)(UVPT + (UVPT >> 12) * 4);
+  pte_t *pt = (pte_t *)UVPT;
+  lcr3(PADDR(from_env->env_pgdir));
+  int i;
+  for (i = 0; i < PDX(UTOP); i++)
+  {
+    if (pd[i] & PTE_P)
+    {
+      int j;
+      for (j = 0; j < NPTENTRIES; j++)
+      {
+        int pgnum = i * NPTENTRIES + j;
+        if (pt[pgnum] & PTE_P)
+        {
+          void *va = (void *)(pgnum * PGSIZE);
+          pte_t *pte;
+          struct PageInfo *p = page_lookup(from_env->env_pgdir, va, &pte);
+          if (page_insert(to_env->env_pgdir, p, va, *pte & 0xfff) < 0)
+            return -1;
+        }
+      }
+    }
+  }
+  lcr3(PADDR(kern_pgdir));
+  return 0;
+}

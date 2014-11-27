@@ -1,29 +1,30 @@
 #include <inc/lib.h>
 #include <inc/jthread.h>
 
-void *
-deadbeef(int c)
-{
-  return (void *)0xdeadbeef;
-}
-
 int
 deadball()
 {
+  cprintf("[%08x] Second string\n", thisenv->env_id);
   return 0xdeadba11;
+}
+
+void *
+deadbeef(int c)
+{
+  jthread_t tid;
+  void *retval;
+  jthread_create(&tid, NULL, (void *(*)(void *))deadball, NULL);
+  jthread_join(tid, &retval);
+  return retval;
 }
 
 void
 umain(int argc, char *argv[])
 {
-  // cprintf("In recursion.c\n");
-  // deadbeef(0);
-  // cprintf("We counted to 100!\n");
   jthread_t tid1, tid2;
-  cprintf("jthread: %d\n", jthread_create(&tid1, NULL, (void *(*)(void *))deadbeef, 0));
-  cprintf("jthread: tid: %d\n", tid1);
-  cprintf("jthread: %d\n", jthread_create(&tid2, NULL, (void *(*)(void *))deadball, NULL));
+  cprintf("[%08x] jthread: %d\n", thisenv->env_id, jthread_create(&tid1, NULL, (void *(*)(void *))deadbeef, 0));
+  cprintf("[%08x] jthread: tid: %d\n", thisenv->env_id, tid1);
   void *retval;
   jthread_join(tid1, &retval);
-  cprintf("jthread: Got return value! retval: %08x\n", (uintptr_t)retval);
+  cprintf("[%08x] jthread: Got return value! retval: %08x\n", thisenv->env_id, (uintptr_t)retval);
 }

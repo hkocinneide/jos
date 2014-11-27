@@ -627,6 +627,6 @@ env_duplicate_pgdir(struct Env *from_env, struct Env *to_env)
       }
     }
   }
-  lcr3(PADDR(kern_pgdir));
+  lcr3(PADDR(curenv->env_pgdir));
   return 0;
 }

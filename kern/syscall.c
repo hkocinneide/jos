@@ -627,6 +627,29 @@ sys_kthread_exit(void *retval)
   return 0;
 }
 
+// XXX These functions work because of the big kernel lock
+static int
+sys_kthread_mutex_lock(jthread_mutex_t *mutex)
+{
+  if (mutex->locked)
+    return -1;
+  mutex->owner = curenv->env_id;
+  mutex->locked = true;
+  return 0;
+}
+
+// XXX These functions work because of the big kernel lock
+static int
+sys_kthread_mutex_unlock(jthread_mutex_t *mutex)
+{
+  if (!mutex->locked)
+    return -1;
+  if (mutex->owner != curenv->env_id)
+    return -1;
+  mutex->locked = false;
+  return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -681,6 +704,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_kthread_join((jthread_t)a1, (void **)a2);
     case SYS_kthread_exit:
       return sys_kthread_exit((void *)a1);
+    case SYS_kthread_mutex_lock:
+      return sys_kthread_mutex_lock((jthread_mutex_t *)a1);
+    case SYS_kthread_mutex_unlock:
+      return sys_kthread_mutex_unlock((jthread_mutex_t *)a1);
 	default:
 		return -E_NO_SYS;
 	}

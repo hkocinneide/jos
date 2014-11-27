@@ -49,3 +49,23 @@ jthread_exit(void *retval)
 {
   sys_kthread_exit(retval);
 }
+
+int
+jthread_mutex_lock(jthread_mutex_t *mutex)
+{
+  while (sys_kthread_mutex_lock(mutex) < 0)
+    sys_yield();
+  return 0;
+}
+
+int
+jthread_mutex_trylock(jthread_mutex_t *mutex)
+{
+  return sys_kthread_mutex_lock(mutex);
+}
+
+int
+jthread_mutex_unlock(jthread_mutex_t *mutex)
+{
+  return sys_kthread_mutex_unlock(mutex);
+}

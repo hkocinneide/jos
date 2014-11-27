@@ -23,6 +23,8 @@ enum {
   SYS_kthread_create,
   SYS_kthread_join,
   SYS_kthread_exit,
+  SYS_kthread_mutex_lock,
+  SYS_kthread_mutex_unlock,
 	NSYSCALLS
 };
 

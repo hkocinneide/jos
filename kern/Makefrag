@@ -108,7 +108,8 @@ KERN_BINFILES +=	user/testpteshare \
 			user/testshell
 
 # Binary files for FINAL
-KERN_BINFILES += user/recursion
+KERN_BINFILES += user/recursion \
+ 			user/lock
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))

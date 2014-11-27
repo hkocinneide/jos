@@ -46,7 +46,7 @@ sys_cgetc(void)
 static envid_t
 sys_getenvid(void)
 {
-	return curenv->env_id;
+	return curenv->env_process_envid;
 }
 
 // Destroy a given environment (possibly the currently running environment).
@@ -518,15 +518,16 @@ static int
 sys_kthread_create(void *entry, void *start, void *arg)
 {
   jthread_t tid;
+  int ret;
 
   if ((tid = sys_exofork()) < 0)
-    return -1;
+    return ret;
 
   if (DEBUGTHREAD)
     cprintf("[%08x] Making new thread with id: %08x\n", curenv->env_id, tid);
   // Find the Env
   struct Env *e;
-  if (envid2env(tid, &e, 0) < 0)
+  if ((ret = envid2env(tid, &e, 0)) < 0)
     return -E_INVAL;
 
   // Set thread state
@@ -535,8 +536,8 @@ sys_kthread_create(void *entry, void *start, void *arg)
   e->env_process_envid = curenv->env_process_envid;
 
   struct Env *process;
-  if (envid2env(e->env_process_envid, &process, 0) < 0)
-    return -E_INVAL;
+  if ((ret = envid2env(e->env_process_envid, &process, 0)) < 0)
+    return ret;
   if (DEBUGTHREAD)
     cprintf("Our process's envid: %08x\n", process->env_id);
   // Sanity check about the calling process
@@ -569,8 +570,8 @@ sys_kthread_create(void *entry, void *start, void *arg)
   int perm = PTE_P | PTE_U | PTE_W;
   if (!(page = page_alloc(0)))
     return -E_NO_MEM;
-  if (page_insert(e->env_pgdir, page, va, perm) < 0)
-    return -1;
+  if ((ret = page_insert(e->env_pgdir, page, va, perm)) < 0)
+    return ret;
   if (DEBUGTHREAD)
     cprintf("New page mapped at va:0x%08x\n", (uintptr_t)va);
 
@@ -598,8 +599,9 @@ static int
 sys_kthread_join(jthread_t tid, void **retstore)
 {
   struct Env *e;
-  if (envid2env(tid, &e, 0) < 0)
-    return -1;
+  int ret;
+  if ((ret = envid2env(tid, &e, 0)) < 0)
+    return ret;
   if (e->env_thread_status != THREAD_ZOMBIE)
     return -1;
 
@@ -608,8 +610,9 @@ sys_kthread_join(jthread_t tid, void **retstore)
   uint32_t *kva = (uint32_t *)(page2kva(page) + PGOFF(retstore));
   *kva = (uint32_t)e->env_thread_retval;
 
-  // Free the env we reaped
-  // env_destroy(e);
+  // Mark the env we reaped as done
+  e->env_thread_status = THREAD_DONE;
+  e->env_thread_retval = NULL;
 
   return 0;
 }

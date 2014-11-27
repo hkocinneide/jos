@@ -512,6 +512,19 @@ env_destroy(struct Env *e)
 		return;
 	}
 
+  // If this isn't a child thread, kill all the associated threads with
+  // the main process
+  if (!e->env_child_thread)
+  {
+    struct Env *next = e->env_next_thread;
+    while (next)
+    {
+      struct Env *temp = next->env_next_thread;
+      env_destroy(next);
+      next = temp;
+    }
+  }
+
 	env_free(e);
 
 	if (curenv == e) {
@@ -607,8 +620,9 @@ env_duplicate_pgdir(struct Env *from_env, struct Env *to_env)
           void *va = (void *)(pgnum * PGSIZE);
           pte_t *pte;
           struct PageInfo *p = page_lookup(from_env->env_pgdir, va, &pte);
-          if (page_insert(to_env->env_pgdir, p, va, *pte & 0xfff) < 0)
-            return -1;
+          int ret;
+          if ((ret = page_insert(to_env->env_pgdir, p, va, *pte & 0xfff)) < 0)
+            return ret;
         }
       }
     }

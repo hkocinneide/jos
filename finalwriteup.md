@@ -40,7 +40,7 @@ threads, I use IPC to return values when using whole environments.
 
 The following results were taken as the average of 10 runs on each size of
 matrix, as you can by tweaking `MATRIXSIZE` and `NUMTRIALS`. Times are in
-milliseconds.
+milliseconds, and these are all performed with `CPUS=4`.
 
 | Size | Serial | Parallel |  IPC |
 |:----:|-------:|---------:|-----:|
@@ -55,7 +55,22 @@ milliseconds.
 |  11  |    5911|      5774|  5855|
 |  12  |   71483|     69337| 70126|
 
-It seems that QEMU does not physically back its CPUs, because the serial
+It seems that QEMU does not physically back its CPUs, because the serial and IPC
+performance did not get better over larger matrices when compared to the serial
+performance. Or perhaps the zoo does not let me use more than one of its eight
+cores.
+
+The results show that the calculations using jthreads are at least as performant
+as those done on a single thread of execution (in this case, 2% more performant
+on the more stressful tests). Thus, with physically-backed cores, we would
+expect to see Parallel and IPC implementations significantly beating the Serial
+one.
+
+We also see the large cost involved in the fork-and-ipc in the smaller tasks.
+IPC does not become competitive with the serial or parallel implementations
+until we are multipling 11-by-11 matrices.
+
+We see that the jthread library provides light weight threads to the JOS kernel.
 
 # Implementation
 

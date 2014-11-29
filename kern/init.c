@@ -75,7 +75,9 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-  e1000_transmit((uint8_t *)"fuck", 5);
+  // ENV_CREATE(user_recursion, ENV_TYPE_USER);
+  // ENV_CREATE(user_lock, ENV_TYPE_USER);
+  ENV_CREATE(user_matrix, ENV_TYPE_USER);
 	ENV_CREATE(user_icode, ENV_TYPE_USER);
 #endif // TEST*
 

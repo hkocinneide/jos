@@ -6,6 +6,7 @@
 #include <inc/string.h>
 #include <inc/assert.h>
 #include <inc/elf.h>
+#include <inc/jthread.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -273,6 +274,14 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// Also clear the IPC receiving flag.
 	e->env_ipc_recving = 0;
 
+  // Clear out the threading variables
+  e->env_child_thread = false;
+  e->env_process_envid = e->env_id;
+  e->env_next_thread = NULL;
+  e->env_thread_retval = NULL;
+  e->env_thread_status = THREAD_NOT_RUNNABLE;
+  e->env_num_threads = 0;
+
 	// commit the allocation
 	env_free_list = e->env_link;
 	*newenv_store = e;
@@ -401,7 +410,7 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
   
-  region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
+  region_alloc(e, (void *)(USTACKTOP - NSTACKPAGES * PGSIZE), NSTACKPAGES * PGSIZE);
 }
 
 //
@@ -451,7 +460,7 @@ env_free(struct Env *e)
 		lcr3(PADDR(kern_pgdir));
 
 	// Note the environment's demise.
-	cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 
 	// Flush all mapped pages in the user portion of the address space
 	static_assert(UTOP % PTSIZE == 0);
@@ -502,6 +511,19 @@ env_destroy(struct Env *e)
 		e->env_status = ENV_DYING;
 		return;
 	}
+
+  // If this isn't a child thread, kill all the associated threads with
+  // the main process
+  if (!e->env_child_thread)
+  {
+    struct Env *next = e->env_next_thread;
+    while (next)
+    {
+      struct Env *temp = next->env_next_thread;
+      env_destroy(next);
+      next = temp;
+    }
+  }
 
 	env_free(e);
 
@@ -576,4 +598,35 @@ env_run(struct Env *e)
 
   unlock_kernel();
   env_pop_tf(&curenv->env_tf);
+}
+
+int
+env_duplicate_pgdir(struct Env *from_env, struct Env *to_env)
+{
+  pde_t *pd = (pde_t *)(UVPT + (UVPT >> 12) * 4);
+  pte_t *pt = (pte_t *)UVPT;
+  lcr3(PADDR(from_env->env_pgdir));
+  int i;
+  for (i = 0; i < PDX(UTOP); i++)
+  {
+    if (pd[i] & PTE_P)
+    {
+      int j;
+      for (j = 0; j < NPTENTRIES; j++)
+      {
+        int pgnum = i * NPTENTRIES + j;
+        if (pt[pgnum] & PTE_P)
+        {
+          void *va = (void *)(pgnum * PGSIZE);
+          pte_t *pte;
+          struct PageInfo *p = page_lookup(from_env->env_pgdir, va, &pte);
+          int ret;
+          if ((ret = page_insert(to_env->env_pgdir, p, va, *pte & 0xfff)) < 0)
+            return ret;
+        }
+      }
+    }
+  }
+  lcr3(PADDR(curenv->env_pgdir));
+  return 0;
 }

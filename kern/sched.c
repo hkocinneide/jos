@@ -52,7 +52,7 @@ sched_yield(void)
   }
 
 	// sched_halt never returns
-  cprintf("Yield is halting\n");
+  // cprintf("Yield is halting on CPU %d\n", cpunum());
 	sched_halt();
 }
 

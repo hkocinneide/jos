@@ -31,7 +31,6 @@ input(envid_t ns_envid)
 
     nsipcbuf.pkt.jp_len = len;
     memmove(nsipcbuf.pkt.jp_data, buf, len);
-    cprintf("DEBUG\n");
 
     while(sys_ipc_try_send(ns_envid, NSREQ_INPUT, &nsipcbuf, PTE_P|PTE_W|PTE_U) < 0)
       ;

@@ -156,7 +156,6 @@ duppage(envid_t envid, unsigned pn)
 envid_t
 fork(void)
 {
-  cprintf("forking...\n");
   set_pgfault_handler(pgfault);
 
   envid_t envid;

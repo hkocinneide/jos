@@ -22,6 +22,7 @@
 #include <inc/args.h>
 #include <inc/malloc.h>
 #include <inc/ns.h>
+#include <inc/jthread.h>
 
 #define USED(x)		(void)(x)
 
@@ -62,6 +63,11 @@ int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
 int sys_net_transmit(uint8_t *data, uint32_t len);
 int sys_net_receive(uint8_t *data, uint32_t *len);
+jthread_t sys_kthread_create(void *jthread_main, void *start_routine, void *arg);
+int sys_kthread_join(jthread_t tid, void **retstore);
+int sys_kthread_exit(void *retval);
+// int sys_kthread_mutex_lock(jthread_mutex_t *mutex);
+// int sys_kthread_mutex_unlock(jthread_mutex_t *mutex);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))

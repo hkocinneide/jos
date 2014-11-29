@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/jthread.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -13,6 +14,8 @@
 #include <kern/sched.h>
 #include <kern/time.h>
 #include <kern/e1000.h>
+
+#define DEBUGTHREAD 0
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -43,7 +46,7 @@ sys_cgetc(void)
 static envid_t
 sys_getenvid(void)
 {
-	return curenv->env_id;
+	return curenv->env_process_envid;
 }
 
 // Destroy a given environment (possibly the currently running environment).
@@ -511,6 +514,134 @@ sys_net_receive(uint8_t *data, uint32_t *len)
   return ret;
 }
 
+static int
+sys_kthread_create(void *entry, void *start, void *arg)
+{
+  jthread_t tid;
+  int ret;
+
+  if ((tid = sys_exofork()) < 0)
+    return ret;
+
+  if (DEBUGTHREAD)
+    cprintf("[%08x] Making new thread with id: %08x\n", curenv->env_id, tid);
+  // Find the Env
+  struct Env *e;
+  if ((ret = envid2env(tid, &e, 0)) < 0)
+    return -E_INVAL;
+
+  // Set thread state
+
+  e->env_child_thread = true;
+  e->env_process_envid = curenv->env_process_envid;
+
+  struct Env *process;
+  if ((ret = envid2env(e->env_process_envid, &process, 0)) < 0)
+    return ret;
+  if (DEBUGTHREAD)
+    cprintf("Our process's envid: %08x\n", process->env_id);
+  // Sanity check about the calling process
+  if (!(process->env_status == ENV_NOT_RUNNABLE ||
+        process->env_status == ENV_RUNNABLE ||
+        process->env_status == ENV_RUNNING))
+    return -E_INVAL;
+  process->env_num_threads++;
+  int threadnum = process->env_num_threads;
+  if (DEBUGTHREAD)
+    cprintf("%08x's Thread number %d\n", e->env_id, threadnum);
+
+  // Find the last thread on the linked list
+  struct Env *next_thread = curenv;
+  while (next_thread->env_next_thread)
+    next_thread = next_thread->env_next_thread;
+  // Add this env to the thread list
+  next_thread->env_next_thread = e;
+
+  // Use the same address space and pgfault handler
+  // e->env_pgdir = curenv->env_pgdir;
+  env_duplicate_pgdir(curenv, e);
+  e->env_pgfault_upcall = curenv->env_pgfault_upcall;
+
+  // Allocate new stack
+
+  void *va = (void*)(USTACKTOP - ((threadnum * (NSTACKPAGES + 1) + NSTACKPAGES) * PGSIZE));
+  // region_alloc(e, va, NSTACKPAGES * PGSIZE);
+
+  struct PageInfo *page;
+  int i, perm = PTE_P | PTE_U | PTE_W;
+  for (i = 0; i < NSTACKPAGES; i++, va += PGSIZE)
+  {
+    if (!(page = page_alloc(0)))
+      return -E_NO_MEM;
+    if ((ret = page_insert(e->env_pgdir, page, va, perm)) < 0)
+      return ret;
+    if (DEBUGTHREAD)
+      cprintf("New page mapped at va:0x%08x\n", (uintptr_t)va);
+  } // va now points to the top of the mapped stack
+
+  // Put the arguments on the stack
+  void *kva = page2kva(page);
+  *(uint32_t *)(kva + PGSIZE - 4) = (uint32_t)arg;
+  *(uint32_t *)(kva + PGSIZE - 8) = (uint32_t)start;
+
+  // Set the eip and esp to the new values
+  e->env_tf.tf_eip = (uintptr_t)entry;
+  e->env_tf.tf_esp = (uintptr_t)(va - 12);
+
+  e->env_status = ENV_RUNNABLE;
+  
+  if (DEBUGTHREAD)
+  {
+    cprintf("Made a runnable thread\n");
+    cprintf("Thread's eip: %08x\n", e->env_tf.tf_eip);
+    cprintf("Thread's esp: %08x\n", e->env_tf.tf_esp);
+  }
+  return tid;
+}
+
+static int
+sys_kthread_join(jthread_t tid, void **retstore)
+{
+  struct Env *e;
+  int ret;
+  if ((ret = envid2env(tid, &e, 0)) < 0)
+    return ret;
+  if (e->env_thread_status != THREAD_ZOMBIE)
+    return -1;
+  // Check that we have permission to reap this thread
+  if (e->env_process_envid != curenv->env_process_envid)
+    return -1;
+
+  // Set retval in the calling env's vm space
+  struct PageInfo *page = page_lookup(e->env_pgdir, (void *)retstore, NULL);
+  uint32_t *kva = (uint32_t *)(page2kva(page) + PGOFF(retstore));
+  *kva = (uint32_t)e->env_thread_retval;
+
+  // Mark the env we reaped as done
+  e->env_thread_status = THREAD_DONE;
+  e->env_thread_retval = NULL;
+
+  return 0;
+}
+
+static int
+sys_kthread_exit(void *retval)
+{
+  if (DEBUGTHREAD)
+    cprintf("In jthread_exit\n");
+  if (curenv->env_child_thread)
+  {
+    curenv->env_thread_status = THREAD_ZOMBIE;
+    curenv->env_thread_retval = retval;
+    curenv->env_status = ENV_NOT_RUNNABLE;
+  }
+  else
+  {
+    env_destroy(curenv);
+  }
+  return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -559,8 +690,13 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_net_transmit((uint8_t *)a1, (uint32_t)a2);
     case SYS_net_receive:
       return sys_net_receive((uint8_t *)a1, (uint32_t *)a2);
+    case SYS_kthread_create:
+      return sys_kthread_create((void *)a1, (void *)a2, (void *)a3);
+    case SYS_kthread_join:
+      return sys_kthread_join((jthread_t)a1, (void **)a2);
+    case SYS_kthread_exit:
+      return sys_kthread_exit((void *)a1);
 	default:
 		return -E_NO_SYS;
 	}
 }
-

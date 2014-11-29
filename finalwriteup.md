@@ -1,6 +1,6 @@
-CPSC 422 Final Project
-November 2014
-Hugh O'Cinneide
+CPSC 422 Final Project  
+November 2014  
+Hugh O'Cinneide  
 
 # Overview
 
@@ -63,7 +63,7 @@ cores.
 The results show that the calculations using jthreads are at least as performant
 as those done on a single thread of execution (in this case, 2% more performant
 on the more stressful tests). Thus, with physically-backed cores, we would
-expect to see Parallel and IPC implementations significantly beating the Serial
+expect to see parallel and IPC implementations significantly beating the serial
 one.
 
 We also see the large cost involved in the fork-and-ipc in the smaller tasks.
@@ -89,16 +89,16 @@ I added six fields to struct Env to achieve this
 * `void *env_thread_retval`
 * `int env_num_threads`
 
-**`env_child_thread`**: identifies if an environment is a child or not
+**`env_child_thread`**: identifies if an environment is a child or not  
 **`env_process_envid`**: if the environment is a child thread, this identifies
-the parent's envid.
+the parent's envid.  
 **`env_next_thread`**: used as a linked list of environments in a process so
-that on main thread exit we can clean up all the child threads.
-**`env_thread_status`**: used to identify threads whos values we can reap
-**`env_thread_retval`**: the return value of the environment after it exits
+that on main thread exit we can clean up all the child threads.  
+**`env_thread_status`**: used to identify threads whos values we can reap  
+**`env_thread_retval`**: the return value of the environment after it exits  
 **`env_num_thread`**: only valid for the main thread's env, used to count how
 many threads the process has, in order to allocate the next thread's stack in
-the right place.
+the right place.  
 
 ## Creating a thread
 

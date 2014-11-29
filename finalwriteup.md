@@ -26,6 +26,37 @@ the first three of which map onto the new system calls:
 
 and the mutexes use the same xchg strategy as is used in the spinlock.
 
+# Performance
+
+To test this code I used the program at `user/matrix.c`. This calculates the
+determinant of a `MATRIXSIZE`-by-`MATRIXSIZE` matrix using a super-exponential
+recursive algorithm.
+
+In the serial case, I just let the code run in one environment.
+In the thread and ipc case, I split the work into finding the determinant of 
+`MATRIXSIZE` `(MATRIXSIZE - 1)`-by-`(MATRIXSIZE - 1)` matrices, each operation
+running on its own thread/environment. I use the return values when using
+threads, I use IPC to return values when using whole environments.
+
+The following results were taken as the average of 10 runs on each size of
+matrix, as you can by tweaking `MATRIXSIZE` and `NUMTRIALS`. Times are in
+milliseconds.
+
+| Size | Serial | Parallel |  IPC |
+|:----:|-------:|---------:|-----:|
+|   3  |       0|         2|    13|
+|   4  |       0|         1|    17|
+|   5  |       0|         2|    24|
+|   6  |       0|         3|    25|
+|   7  |       1|         4|    33|
+|   8  |       7|         7|    47|
+|   9  |      56|        57|   104|
+|  10  |     558|       544|   600|
+|  11  |    5911|      5774|  5855|
+|  12  |   71483|     69337| 70126|
+
+It seems that QEMU does not physically back its CPUs, because the serial
+
 # Implementation
 
 The basic strategy for this project was to make a `fork()`-like call where a new
@@ -82,8 +113,8 @@ mapped immediately, not on demand.
 
 ## Reaping threads and their return values
 
-This is a simple matter of checking a environment's env_thread_status. If it is
-`THREAD_ZOMBIE`, we can grab its return value and mark it as `THREAD_DONE`.
+This is a simple matter of checking a environment's `env_thread_status`. If it
+is `THREAD_ZOMBIE`, we can grab its return value and mark it as `THREAD_DONE`.
 
 ## Returning resources
 

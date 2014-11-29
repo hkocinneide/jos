@@ -38,6 +38,8 @@ int thread_determ(int a[MATRIXSIZE][MATRIXSIZE])
   return determ(a, MATRIXSIZE - 1, false, false);
 }
 
+// Modified code found at
+// stackoverflow.com/questions/21220504/matrix-determinant-algorithm-c
 int determ(int a[MATRIXSIZE][MATRIXSIZE], int n, bool thread, bool ipc)
 {
   int det = 0, jt = 0, pt = 0, p, h, k, i, j, temp[MATRIXSIZE][MATRIXSIZE];

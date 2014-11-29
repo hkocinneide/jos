@@ -608,6 +608,9 @@ sys_kthread_join(jthread_t tid, void **retstore)
     return ret;
   if (e->env_thread_status != THREAD_ZOMBIE)
     return -1;
+  // Check that we have permission to reap this thread
+  if (e->env_process_envid != curenv->env_process_envid)
+    return -1;
 
   // Set retval in the calling env's vm space
   struct PageInfo *page = page_lookup(e->env_pgdir, (void *)retstore, NULL);
@@ -693,10 +696,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_kthread_join((jthread_t)a1, (void **)a2);
     case SYS_kthread_exit:
       return sys_kthread_exit((void *)a1);
-    // case SYS_kthread_mutex_lock:
-    //   return sys_kthread_mutex_lock((jthread_mutex_t *)a1);
-    // case SYS_kthread_mutex_unlock:
-    //   return sys_kthread_mutex_unlock((jthread_mutex_t *)a1);
 	default:
 		return -E_NO_SYS;
 	}

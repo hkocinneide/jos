@@ -269,7 +269,8 @@ trap_dispatch(struct Trapframe *tf)
                                   tf->tf_regs.reg_esi);
     break;
   case (IRQ_TIMER + IRQ_OFFSET):
-    time_tick();
+    if (cpunum() == 0)
+      time_tick();
     lapic_eoi();
     sched_yield();
     break;

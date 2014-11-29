@@ -15,7 +15,7 @@
 #include <kern/time.h>
 #include <kern/e1000.h>
 
-#define DEBUGTHREAD 1
+#define DEBUGTHREAD 0
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -563,17 +563,21 @@ sys_kthread_create(void *entry, void *start, void *arg)
   e->env_pgfault_upcall = curenv->env_pgfault_upcall;
 
   // Allocate new stack
-  // TODO: Make this scale for more than one thread
+
+  void *va = (void*)(USTACKTOP - ((threadnum * (NSTACKPAGES + 1) + NSTACKPAGES) * PGSIZE));
+  // region_alloc(e, va, NSTACKPAGES * PGSIZE);
 
   struct PageInfo *page;
-  void *va = (void*)(USTACKTOP - ((threadnum * 2 + 1) * PGSIZE));
-  int perm = PTE_P | PTE_U | PTE_W;
-  if (!(page = page_alloc(0)))
-    return -E_NO_MEM;
-  if ((ret = page_insert(e->env_pgdir, page, va, perm)) < 0)
-    return ret;
-  if (DEBUGTHREAD)
-    cprintf("New page mapped at va:0x%08x\n", (uintptr_t)va);
+  int i, perm = PTE_P | PTE_U | PTE_W;
+  for (i = 0; i < NSTACKPAGES; i++, va += PGSIZE)
+  {
+    if (!(page = page_alloc(0)))
+      return -E_NO_MEM;
+    if ((ret = page_insert(e->env_pgdir, page, va, perm)) < 0)
+      return ret;
+    if (DEBUGTHREAD)
+      cprintf("New page mapped at va:0x%08x\n", (uintptr_t)va);
+  } // va now points to the top of the mapped stack
 
   // Put the arguments on the stack
   void *kva = page2kva(page);
@@ -582,7 +586,7 @@ sys_kthread_create(void *entry, void *start, void *arg)
 
   // Set the eip and esp to the new values
   e->env_tf.tf_eip = (uintptr_t)entry;
-  e->env_tf.tf_esp = (uintptr_t)(va + PGSIZE - 12);
+  e->env_tf.tf_esp = (uintptr_t)(va - 12);
 
   e->env_status = ENV_RUNNABLE;
   
@@ -620,35 +624,36 @@ sys_kthread_join(jthread_t tid, void **retstore)
 static int
 sys_kthread_exit(void *retval)
 {
-  cprintf("In jthread_exit\n");
+  if (DEBUGTHREAD)
+    cprintf("In jthread_exit\n");
   curenv->env_thread_status = THREAD_ZOMBIE;
   curenv->env_thread_retval = retval;
   curenv->env_status = ENV_NOT_RUNNABLE;
   return 0;
 }
 
-// XXX These functions work because of the big kernel lock
-static int
-sys_kthread_mutex_lock(jthread_mutex_t *mutex)
-{
-  if (mutex->locked)
-    return -1;
-  mutex->owner = curenv->env_id;
-  mutex->locked = true;
-  return 0;
-}
-
-// XXX These functions work because of the big kernel lock
-static int
-sys_kthread_mutex_unlock(jthread_mutex_t *mutex)
-{
-  if (!mutex->locked)
-    return -1;
-  if (mutex->owner != curenv->env_id)
-    return -1;
-  mutex->locked = false;
-  return 0;
-}
+// // XXX These functions work because of the big kernel lock
+// static int
+// sys_kthread_mutex_lock(jthread_mutex_t *mutex)
+// {
+//   if (mutex->locked)
+//     return -1;
+//   mutex->owner = curenv->env_id;
+//   mutex->locked = true;
+//   return 0;
+// }
+// 
+// // XXX These functions work because of the big kernel lock
+// static int
+// sys_kthread_mutex_unlock(jthread_mutex_t *mutex)
+// {
+//   if (!mutex->locked)
+//     return -1;
+//   if (mutex->owner != curenv->env_id)
+//     return -1;
+//   mutex->locked = false;
+//   return 0;
+// }
 
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
@@ -704,10 +709,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_kthread_join((jthread_t)a1, (void **)a2);
     case SYS_kthread_exit:
       return sys_kthread_exit((void *)a1);
-    case SYS_kthread_mutex_lock:
-      return sys_kthread_mutex_lock((jthread_mutex_t *)a1);
-    case SYS_kthread_mutex_unlock:
-      return sys_kthread_mutex_unlock((jthread_mutex_t *)a1);
+    // case SYS_kthread_mutex_lock:
+    //   return sys_kthread_mutex_lock((jthread_mutex_t *)a1);
+    // case SYS_kthread_mutex_unlock:
+    //   return sys_kthread_mutex_unlock((jthread_mutex_t *)a1);
 	default:
 		return -E_NO_SYS;
 	}

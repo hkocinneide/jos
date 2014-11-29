@@ -21,11 +21,9 @@ void waitncycles(int n)
 void *
 acquire_and_hold(void *arg)
 {
-  cprintf("acquire_and_hold: lock memory location: %08x\n", (uint32_t)&r.lock.locked);
   cprintf("acquire_and_hold: getting resource\n");
   jthread_mutex_lock(&r.lock);
   cprintf("acquire_and_hold: r.lock.locked: %s\n", r.lock.locked ? "true" : "false");
-  cprintf("acquire_and_hold: r.locked.owner: %x\n", r.lock.owner);
   waitncycles(100);
   cprintf("acquire_and_hold: releasing resource\n");
   jthread_mutex_unlock(&r.lock);

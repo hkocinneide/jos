@@ -4,11 +4,15 @@
 
 #include <inc/lib.h>
 #include <inc/jthread.h>
+#include <inc/x86.h>
+
+#define DEBUG 0
 
 void *
 jthread_main(void *(*start_routine)(void *), void *arg)
 {
-  cprintf("In jthread_main\n");
+  if (DEBUG)
+    cprintf("In jthread_main\n");
   void *ret = start_routine(arg);
   jthread_exit(ret);
   // Should not reach here
@@ -53,19 +57,25 @@ jthread_exit(void *retval)
 int
 jthread_mutex_lock(jthread_mutex_t *mutex)
 {
-  while (sys_kthread_mutex_lock(mutex) < 0)
-    sys_yield();
+  while (xchg((uint32_t *)&mutex->locked, 1) != 0)
+    asm volatile ("pause");
+  mutex->owner = thisenv->env_id;
   return 0;
 }
 
 int
 jthread_mutex_trylock(jthread_mutex_t *mutex)
 {
-  return sys_kthread_mutex_lock(mutex);
+  if (xchg((uint32_t *)&mutex->locked, 1) != 0)
+    return -1;
+  return 0;
 }
 
 int
 jthread_mutex_unlock(jthread_mutex_t *mutex)
 {
-  return sys_kthread_mutex_unlock(mutex);
+  if (mutex->owner != thisenv->env_id)
+    return -1;
+  xchg((uint32_t *)&mutex->locked, 0);
+  return 0;
 }

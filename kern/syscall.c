@@ -626,34 +626,18 @@ sys_kthread_exit(void *retval)
 {
   if (DEBUGTHREAD)
     cprintf("In jthread_exit\n");
-  curenv->env_thread_status = THREAD_ZOMBIE;
-  curenv->env_thread_retval = retval;
-  curenv->env_status = ENV_NOT_RUNNABLE;
+  if (curenv->env_child_thread)
+  {
+    curenv->env_thread_status = THREAD_ZOMBIE;
+    curenv->env_thread_retval = retval;
+    curenv->env_status = ENV_NOT_RUNNABLE;
+  }
+  else
+  {
+    env_destroy(curenv);
+  }
   return 0;
 }
-
-// // XXX These functions work because of the big kernel lock
-// static int
-// sys_kthread_mutex_lock(jthread_mutex_t *mutex)
-// {
-//   if (mutex->locked)
-//     return -1;
-//   mutex->owner = curenv->env_id;
-//   mutex->locked = true;
-//   return 0;
-// }
-// 
-// // XXX These functions work because of the big kernel lock
-// static int
-// sys_kthread_mutex_unlock(jthread_mutex_t *mutex)
-// {
-//   if (!mutex->locked)
-//     return -1;
-//   if (mutex->owner != curenv->env_id)
-//     return -1;
-//   mutex->locked = false;
-//   return 0;
-// }
 
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t

@@ -2,10 +2,19 @@
 #include <inc/jthread.h>
 
 #define MATRIXSIZE 12
+#define NUMTRIALS  10
 #define DEBUG 0
 #define DEBUGDET 0 
 
-int determ(int a[MATRIXSIZE][MATRIXSIZE], int n, bool thread);
+int determ(int a[MATRIXSIZE][MATRIXSIZE], int n, bool thread, bool fork);
+
+envid_t Ppid;
+
+int
+determ_fork(int a[MATRIXSIZE][MATRIXSIZE])
+{
+  return determ(a, MATRIXSIZE - 1, false, false);
+}
 
 int thread_determ(int a[MATRIXSIZE][MATRIXSIZE])
 {
@@ -26,13 +35,14 @@ int thread_determ(int a[MATRIXSIZE][MATRIXSIZE])
       cprintf("\n");
     }
   }
-  return determ(a, MATRIXSIZE - 1, false);
+  return determ(a, MATRIXSIZE - 1, false, false);
 }
 
-int determ(int a[MATRIXSIZE][MATRIXSIZE], int n, bool thread)
+int determ(int a[MATRIXSIZE][MATRIXSIZE], int n, bool thread, bool ipc)
 {
-  int det = 0, jt = 0, p, h, k, i, j, temp[MATRIXSIZE][MATRIXSIZE];
+  int det = 0, jt = 0, pt = 0, p, h, k, i, j, temp[MATRIXSIZE][MATRIXSIZE];
   jthread_t tids[MATRIXSIZE];
+  envid_t pids[MATRIXSIZE];
   if (n == 1) 
   {
     return a[0][0];
@@ -62,9 +72,8 @@ int determ(int a[MATRIXSIZE][MATRIXSIZE], int n, bool thread)
           }
         }
       }
-      if (thread)
+      if (thread || ipc)
       {
-        // int *thread_matrix = (int *)malloc((MATRIXSIZE - 1) * (MATRIXSIZE - 1) * sizeof(int));
         int (*thread_matrix)[MATRIXSIZE][MATRIXSIZE] = malloc(sizeof(int[MATRIXSIZE][MATRIXSIZE]));
         int ti, tj;
         if (DEBUGDET)
@@ -93,22 +102,33 @@ int determ(int a[MATRIXSIZE][MATRIXSIZE], int n, bool thread)
           }
           cprintf("Copied matrix location: 0x%08x\n", thread_matrix);
         }
-        jthread_create(&tids[jt++], NULL, (void *(*)(void *))thread_determ, (void *)thread_matrix);
-        // int jt;
-        // for (jt = 0; jt < MATRIXSIZE; jt++)
-        // {
-        //   jthread_create(&tids[jt], NULL, (void *(*)(void *))thread_determ, (void *)temp);
-        // } 
-        // for (jt = 0; jt < MATRIXSIZE; jt++)
-        // {
-        //   void *ret;
-        //   jthread_join(tids[jt], &ret);
-        //   det += a[0][(int)ret;
-        // }
+        if (thread)
+        {
+          jthread_create(&tids[jt++], NULL, (void *(*)(void *))thread_determ, (void *)thread_matrix);
+        }
+        else // IPC
+        {
+          int ret;
+          if ((ret = fork()) < 0)
+            return ret;
+          if (ret == 0)
+          {
+            int r;
+            ipc_recv(&Ppid, NULL, NULL);
+            r = determ(temp, n-1, false, false);
+            ipc_send(Ppid, r, NULL, 0);
+            sys_kthread_exit(NULL); // XXX Hack in place of an exit syscall
+          }
+          else
+          {
+            pids[pt++] = ret;
+            ipc_send(ret, 0, NULL, 0); // Let them know who their daddy is
+          }
+        }
       }
       else
       {
-        det = det + a[0][p]*(p % 2 ? -1 : 1) * determ(temp, n-1, false);
+        det = det + a[0][p]*(p % 2 ? -1 : 1) * determ(temp, n-1, false, false);
       }
     }
     if (thread)
@@ -127,6 +147,20 @@ int determ(int a[MATRIXSIZE][MATRIXSIZE], int n, bool thread)
           cprintf("%d\n", det);
       }
     }
+    else if (ipc)
+    {
+      for (pt = 0; pt < MATRIXSIZE; pt++)
+      {
+        int ret;
+        envid_t env;
+        ret = ipc_recv(&env, NULL, NULL);
+        int n;
+        for (n = 0; n < MATRIXSIZE; n++)
+          if (pids[n] == env)
+            break;
+        det += a[0][n]*(n % 2 ? -1 : 1) * ret;
+      }
+    }
     return det;
   }
 }
@@ -140,105 +174,49 @@ umain(int argc, char *argv[])
   {
     for (j = 0; j < MATRIXSIZE; j++)
     {
-      if (i  == 7  && j == 2)
-      {
-        matrix[i][j] = -8;
-      }
-      else
-      {
-        matrix[i][j] = (i * MATRIXSIZE) + j;
-      }
+      matrix[i][j] = (i * MATRIXSIZE) + j;
       cprintf("%d ", matrix[i][j]);
     }
     cprintf("\n");
   }
-  // while (i != 100)
-  // {
-  //   i++;
-  //   determ(matrix, MATRIXSIZE);
-  // }
+  int total = 0;
+  unsigned tic, toc;
+  int det;
   cprintf("\nSerial run:\n");
-  unsigned tic = sys_time_msec();
-  cprintf("det is: %d\n", determ(matrix, MATRIXSIZE, false));
-  unsigned toc = sys_time_msec();
-  cprintf("\n~~time the serial run took: %d msec~~\n\n", toc - tic);
+  for (i = 0; i < NUMTRIALS; i++)
+  {
+    tic = sys_time_msec();
+    det = determ(matrix, MATRIXSIZE, false, false);
+    // cprintf("det is: %d\n", det);
+    toc = sys_time_msec();
+    cprintf("~~time that serial run took: %d msec~~\n", toc - tic);
+    total += toc - tic;
+  }
+  cprintf("\n~~~~~~~ SERIAL AVE: %d ~~~~~~\n\n", total / NUMTRIALS);
+
+  total = 0;
   cprintf("Thread run:\n");
-  tic = sys_time_msec();
-  cprintf("det is: %d\n", determ(matrix, MATRIXSIZE, true));
-  toc = sys_time_msec();
-  cprintf("\n!!time the thread run took: %d msec!!\n\n", toc - tic);
+  for (i = 0; i < NUMTRIALS; i++)
+  {
+    tic = sys_time_msec();
+    det = determ(matrix, MATRIXSIZE, true, false);
+    // cprintf("det is: %d\n", det);
+    toc = sys_time_msec();
+    cprintf("!!time the thread run took: %d msec!!\n", toc - tic);
+    total += toc - tic;
+  }
+  cprintf("\n!!!!!! THREAD AVE: %d !!!!!!\n\n", total / NUMTRIALS);
 
-  // for (i = 0; i < MATRIXSIZE * MATRIXSIZE; i++)
-  //   Matrix[i] = i;
-  // cprintf("\ndet is: %d\n\n", det(Matrix, 3));
+  total = 0;
+  cprintf("\nIPC run:\n");
+  for (i = 0; i < NUMTRIALS; i++)
+  {
+    tic = sys_time_msec();
+    det = determ(matrix, MATRIXSIZE, false, true);
+    // cprintf("det is: %d\n", det);
+    toc = sys_time_msec();
+    cprintf("**time the ipc run took: %d msec**\n", toc - tic);
+    total += toc - tic;
+  }
+  cprintf("\n****** IPC AVE: %d ******\n\n", total / NUMTRIALS);
 }
-
-// int *
-// element(int *m, int x, int y)
-// {
-//   int pos = m - Matrix;
-//   if (pos >= MATRIXSIZE * MATRIXSIZE || pos < 0)
-//   {
-//     cprintf("element: invalid matrix pointer\n");
-//     return NULL;
-//   }
-//   int xoff = (pos % MATRIXSIZE);
-//   int yoff = (pos - (pos % MATRIXSIZE)) / MATRIXSIZE;
-//   int xnew = (xoff + x) % MATRIXSIZE;
-//   int ynew = (yoff + y) % MATRIXSIZE;
-//   pos = xnew + (ynew * MATRIXSIZE);
-//   if (DEBUG)
-//   {
-//     cprintf("start pos: %d\n", pos);
-//     cprintf("xnew: %d\n", xnew);
-//     cprintf("ynew: %d\n", ynew);
-//     cprintf("xoff: %d\n", xoff);
-//     cprintf("yoff: %d\n", yoff);
-//     cprintf("end pos: %d\n", pos);
-//     cprintf("end value we point at: %d\n\n", Matrix[pos]);
-//   }
-//   return &Matrix[pos];
-// }
-
-// int det(int *m, int size)
-// {
-//   if (size == 0)
-//   {
-//     if (DEBUGDET)
-//       cprintf("det: returning from size 0 matrix ERROR");
-//     return 0;
-//   }
-//   if (size == 1)
-//   {
-//     if (DEBUGDET)
-//       cprintf("det: size 1, det %d\n", *m);
-//     return *m;
-//   }
-//   if (size == 2)
-//   {
-//     int zz = *element(m, 0, 0);
-//     int oo = *element(m, 1, 1);
-//     int zo = *element(m, 0, 1);
-//     int oz = *element(m, 1, 0);
-//     int r = (zz * oo) -
-//             (zo * oz);
-//     if (DEBUGDET)
-//     {
-//       cprintf("det: size 2, (%d * %d) - (%d * %d) = %d\n", zz, oo, zo, oz, r);
-//     }
-//     return r;
-//   }
-//   else
-//   {
-//     int i, d = 0;
-//     for (i = 0; i < size; i++)
-//     {
-//       int head = *element(m, 0, i);
-//       int rest = det(element(m, 1, (1 + i) % size), size - 1);
-//       if (DEBUGDET)
-//         cprintf("det: size > 2, head: %d, rest %d\n", head, rest);
-//       d += head * rest;
-//     }
-//     return d;
-//   }
-// }

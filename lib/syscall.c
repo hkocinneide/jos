@@ -153,13 +153,3 @@ sys_kthread_exit(void *retval)
 {
   return syscall(SYS_kthread_exit, 0, (uintptr_t)retval, 0, 0, 0, 0);
 }
-
-// int sys_kthread_mutex_lock(jthread_mutex_t *mutex)
-// {
-//   return syscall(SYS_kthread_mutex_lock, 0, (uintptr_t)mutex, 0, 0 ,0, 0);
-// }
-// 
-// int sys_kthread_mutex_unlock(jthread_mutex_t *mutex)
-// {
-//   return syscall(SYS_kthread_mutex_unlock, 0, (uintptr_t)mutex, 0, 0 ,0, 0);
-// }
